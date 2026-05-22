@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>朝チャレ C言語 — 26/05/21</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Source+Code+Pro:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body,{delimiters:[{left:'\\(',right:'\\)',display:false},{left:'\\[',right:'\\]',display:true}]})"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: #f5f3ef;
+      color: #1a1a2e;
+      min-height: 100vh
+    }
+
+    /* ─ Header ─ */
+    #header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.97);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid #e0ddd8;
+      padding: 12px 32px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, .06)
+    }
+
+    #header h1 {
+      font-size: 1.1em;
+      font-weight: 900;
+      color: #4a6fa5;
+      white-space: nowrap
+    }
+
+    #name-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 220px
+    }
+
+    #name-wrap label {
+      font-size: 0.9em;
+      color: #666;
+      white-space: nowrap
+    }
+
+    #student-name {
+      background: #fff;
+      border: 1.5px solid #d0cdc8;
+      border-radius: 8px;
+      color: #1a1a2e;
+      padding: 6px 12px;
+      font-size: 0.95em;
+      font-family: inherit;
+      width: 200px
+    }
+
+    #student-name:focus {
+      outline: none;
+      border-color: #4a6fa5;
+      box-shadow: 0 0 0 3px rgba(74, 111, 165, .15)
+    }
+
+    #timer {
+      font-size: 1.6em;
+      font-weight: 900;
+      color: #1e8449;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.05em;
+      transition: color .3s
+    }
+
+    #timer.warn {
+      color: #d35400
+    }
+
+    #timer.danger {
+      color: #c0392b;
+      animation: pulse .8s infinite
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .4
+      }
+    }
+
+    #progress-bar {
+      height: 3px;
+      background: #e0ddd8;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 200
+    }
+
+    #progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4a6fa5, #2471a3);
+      transition: width .5s
+    }
+
+    /* ─ Main ─ */
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px 20px 120px
+    }
+
+    /* ─ Question Card ─ */
+    .q-card {
+      background: #fff;
+      border: 1px solid #e0ddd8;
+      border-radius: 12px;
+      padding: 28px 32px;
+      margin-bottom: 20px;
+      transition: border-color .2s;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .04)
+    }
+
+    .q-card:focus-within {
+      border-color: #4a6fa5;
+      box-shadow: 0 2px 12px rgba(74, 111, 165, .12)
+    }
+
+    .q-num {
+      font-size: 0.8em;
+      font-weight: 700;
+      color: #4a6fa5;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      margin-bottom: 8px
+    }
+
+    .q-title {
+      font-size: 1.1em;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 16px
+    }
+
+    .q-problem {
+      font-size: 0.97em;
+      line-height: 1.8;
+      color: #333;
+      margin-bottom: 20px
+    }
+
+    .q-problem pre {
+      background: #f8f8f6;
+      border: 1px solid #e0ddd8;
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      margin: 12px 0
+    }
+
+    .q-problem code.hljs {
+      background: transparent;
+      padding: 0;
+      font-family: 'Source Code Pro', Consolas, 'Courier New', monospace; font-feature-settings: 'liga' 0;
+      font-size: 0.92em
+    }
+
+    .q-problem p code {
+      background: #efefeb;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Source Code Pro', Consolas, 'Courier New', monospace; font-feature-settings: 'liga' 0;
+      font-size: 0.9em;
+      color: #2471a3;
+      border: 1px solid #e0ddd8
+    }
+
+    /* ─ Choices ─ */
+    .choices {
+      display: flex;
+      flex-direction: column;
+      gap: 8px
+    }
+
+    .choice-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: #fafaf8;
+      border: 1.5px solid #e0ddd8;
+      border-radius: 8px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: all .15s;
+      user-select: none
+    }
+
+    .choice-label:hover {
+      border-color: #4a6fa5;
+      background: #f0f4fa
+    }
+
+    .choice-label.selected {
+      border-color: #4a6fa5;
+      background: #eaf1fb
+    }
+
+    .choice-label.correct {
+      border-color: #1e8449 !important;
+      background: #eafaf1 !important
+    }
+
+    .choice-label.wrong {
+      border-color: #c0392b !important;
+      background: #fdedec !important
+    }
+
+    .choice-label input {
+      margin-top: 3px;
+      flex-shrink: 0;
+      accent-color: #4a6fa5
+    }
+
+    .choice-text {
+      font-size: 0.95em;
+      line-height: 1.7;
+      color: #2a2a2a
+    }
+
+    .choice-text pre {
+      background: #f8f8f6;
+      border: 1px solid #e0ddd8;
+      border-radius: 6px;
+      padding: 12px;
+      overflow-x: auto;
+      margin: 4px 0
+    }
+
+    .choice-text code.hljs {
+      background: transparent;
+      font-family: 'Source Code Pro', Consolas, 'Courier New', monospace; font-feature-settings: 'liga' 0;
+      font-size: 0.88em
+    }
+
+    .multi-hint {
+      font-size: 0.78em;
+      color: #d35400;
+      margin-bottom: 8px;
+      font-weight: 700
+    }
+
+    /* ─ Submit ─ */
+    #footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.97);
+      border-top: 1px solid #e0ddd8;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: 0 -2px 8px rgba(0, 0, 0, .06)
+    }
+
+    #answered-count {
+      font-size: 0.95em;
+      color: #666
+    }
+
+    #answered-count span {
+      color: #4a6fa5;
+      font-weight: 700
+    }
+
+    #submit-btn {
+      background: #4a6fa5;
+      color: #fff;
+      border: none;
+      padding: 12px 36px;
+      border-radius: 8px;
+      font-size: 1.05em;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background .2s;
+      box-shadow: 0 2px 8px rgba(74, 111, 165, .25)
+    }
+
+    #submit-btn:hover {
+      background: #3a5f95
+    }
+
+    #submit-btn:disabled {
+      opacity: .4;
+      cursor: default
+    }
+
+    #reshow-btn {
+      background: #fff;
+      border: 1.5px solid #4a6fa5;
+      color: #4a6fa5;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.95em;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all .2s
+    }
+
+    #reshow-btn:hover {
+      background: #eaf1fb
+    }
+
+    #dl-footer-btn {
+      background: #1e8449;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.95em;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background .2s
+    }
+
+    #dl-footer-btn:hover {
+      background: #196f3d
+    }
+
+    /* ─ Result Modal ─ */
+    #result-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .45);
+      z-index: 300;
+      align-items: center;
+      justify-content: center
+    }
+
+    #result-overlay.show {
+      display: flex
+    }
+
+    #result-box {
+      background: #fff;
+      border: 1px solid #e0ddd8;
+      border-radius: 16px;
+      padding: 40px 48px;
+      max-width: 480px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, .12)
+    }
+
+    #result-box h2 {
+      font-size: 2em;
+      font-weight: 900;
+      margin-bottom: 8px;
+      color: #1a1a2e
+    }
+
+    #score-display {
+      font-size: 4em;
+      font-weight: 900;
+      margin: 16px 0;
+      color: #4a6fa5
+    }
+
+    #result-box p {
+      color: #555;
+      font-size: 0.95em;
+      line-height: 1.7;
+      margin-bottom: 24px
+    }
+
+    #download-btn {
+      background: #4a6fa5;
+      color: #fff;
+      border: none;
+      padding: 14px 40px;
+      border-radius: 8px;
+      font-size: 1em;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      width: 100%;
+      margin-bottom: 12px;
+      transition: background .2s
+    }
+
+    #download-btn:hover {
+      background: #3a5f95
+    }
+
+    #close-btn {
+      background: #fff;
+      border: 1.5px solid #e0ddd8;
+      color: #666;
+      padding: 10px 32px;
+      border-radius: 8px;
+      font-size: 0.9em;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all .2s
+    }
+
+    #close-btn:hover {
+      border-color: #4a6fa5;
+      color: #4a6fa5
+    }
+
+  </style>
+</head>
+
+<body>
+  <div id="progress-bar">
+    <div id="progress-fill" style="width:100%"></div>
+  </div>
+
+  <div id="header">
+    <h1>🧠 朝チャレ — C言語 26/05/21</h1>
+    <div id="name-wrap">
+      <label for="student-name">GitHub ID：</label>
+      <input id="student-name" type="text" placeholder="GitHub username を入力" autocomplete="off">
+    </div>
+    <div id="timer">20:00</div>
+  </div>
+
+  <main id="quiz-area"></main>
+
+  <div id="footer">
+    <div id="answered-count">回答済み <span id="ans-num">0</span> / 20 問</div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button id="reshow-btn" style="display:none"
+        onclick="document.getElementById('result-overlay').classList.add('show')">
+        📊 結果を再表示
+      </button>
+      <button id="dl-footer-btn" style="display:none" onclick="document.getElementById('download-btn').click()">
+        📥 JSONをダウンロード
+      </button>
+      <button id="submit-btn">提出する</button>
+    </div>
+  </div>
+
+  <div id="result-overlay">
+    <div id="result-box">
+      <h2>結果</h2>
+      <div id="score-display"></div>
+      <p id="result-msg"></p>
+      <button id="download-btn">📥 result_260521.json をダウンロード</button>
+      <button id="close-btn">答え合わせを見る</button>
+    </div>
+  </div>
+
+  <script>
+    const QUESTIONS = [{ "num": 1, "title": "C言語の標準入出力と文字列比較", "problem": "以下のコードは、標準入力から文字列を受け取り、特定の条件で出力を行うC言語のプログラムである。このプログラムの挙動に関する記述として、正しいものを選べ。\n\n```c\n#include <stdio.h>\n#include <string.h>\n\nint main(void) {\n    while (1) {\n        char s[100];\n        // 文字列の入力。\n        // 入力が成功しなければループを抜ける\n        if (scanf(\"%99s\", s) != 1) {\n            break;\n        }\n        if (strcmp(s, \"yes\") == 0) {\n            printf(\"clinic\n\");\n        } else {\n            break;\n        }\n    }\n    return 0;\n}\n```", "choices": ["文字列 `Yes` （ `yes` ではないことに注意）を入力しても、プログラムは終了せず次の入力を待つ。", "文字列 `yessir` を入力すると、 `clinic` と表示される。", "`yes` を入力すると、 `clinic` を出力し、次の入力を待つ（ループする）。"], "multiple": false }, { "num": 2, "title": "整数型と実数型 (C言語)", "problem": "後輩は、整数型配列 `a` のすべての要素の平均値を計算する関数を、以下のようにC言語で書いてあなたに見せてきた。後輩が書いたこのプログラムの説明として、**最も適切なもの**を1つ選べ。\n\n```c\ndouble mean(int a[], int length) {\n    int answer = 0;\n    for (int i = 0; i < length; i++) {\n        answer += a[i];\n    }\n    return answer / length;\n}\n```", "choices": ["引数 `length` が \\\( 0 \\) の場合、この関数は \\\( 0.0 \\) を返し、実行時エラーを起こすことなく正常に終了する。", "戻り値の型が `double` であるため、`return` 文の `answer / length` は自動的に浮動小数点数として計算され、小数点以下の精度も保たれる。", "配列 `a` の要素数が多く、かつ要素の値が大きい場合に、変数 `answer` で `int` 型のオーバーフローを起こす可能性がある。", "このプログラムは、C言語の仕様に準拠しており、あらゆる整数の入力に対して常に正しい平均値を計算できる。"], "multiple": false }, { "num": 3, "title": "整数除算の切り上げ (C言語)", "problem": "\\\( 1 \\) 以上の整数 \\\( a, b \\) について、 \\\( a/b \\) の切り上げを計算するC言語の関数を考える。\n\n```c\nint ceil_div(int a, int b) {\n    return /* [ BLANK ] */;\n}\n```\n\n`[ BLANK ]` に入る式として、**誤っている**ものはどれか？ただし、C言語における \\\( x / y \\) は、整数 \\\( x \\) を \\\( y \\) で割った商（小数点以下は切り捨て）である。", "choices": ["`(a - 1) / b + 1`", "`(a + b - 1) / b`", "`a / b + (a % b != 0)`", "`a / b + 1`"], "multiple": false }, { "num": 4, "title": "累積積の計算 (C言語)", "problem": "要素数 \\\( n \\) の \\\( 32 \\) bit 整数型配列 \\\( a \\) の**全要素の積（累積積）**を計算するC言語のプログラムについて、 `[ BLANK ]` に埋めるべき式として正しいものはどれか？\n\n```c\nint product(int n, int* a) {\n    int answer = 1;\n    for (int i = 0; i < n; i++) {\n        [ BLANK ]\n    }\n    return answer;\n}\n```", "choices": ["`answer = a[i];`", "`answer += a[i];`", "`answer *= a[i];`", "`answer =* a[i];`"], "multiple": false }, { "num": 5, "title": "if文の到達可能性の分析", "problem": "以下のC言語の関数 `describe` は、整数 \\\( n \\) を引数に受け取り、何らかの 1 文字を標準出力に表示します。この関数の引数に任意の整数を与えて関数呼び出しを行った時、絶対に表示される事がない出力結果はどれですか？\n\n```c\n#include <stdio.h>\n\nvoid describe(int n) {\n    if (n >= 0) {\n        if (n < 3) {\n            printf(\"A\n\");\n        } else {\n            printf(\"B\n\");\n        }\n    } else {\n        if (n < 3) {\n            printf(\"C\n\");\n        } else {\n            printf(\"D\n\");\n        }\n    }\n}\n```", "choices": ["`A`", "`B`", "`C`", "`D`", "上記の全ての文字が表示されうる"], "multiple": false }, { "num": 6, "title": "論理演算の等価変換 (C言語)", "problem": "二値（0 または 1）の値を取る整数型の変数 \\( a, b \\) を入力すると、排他的論理和（XOR）と同じ論理値を返すC言語の関数 \\( f \\) と、等価な関数 \\( g \\) を作成したい。\n\n以下の選択肢のうち、 \\( [ \\ \\ BLANK \\ \\ ] \\) に記入したときに、関数 \\( f \\) と**等価にならない（結果が異なる）もの**はどれか？\n\n```c\nint f(int a, int b) {\n    // (a AND NOT b) OR (NOT a AND b) => XOR\n    return (a && !b) || (!a && b);\n}\n\nint g(int a, int b) {\n    return [  BLANK  ];\n}\n```", "choices": ["`((!a || b) && (a || !b))`", "`!(!a || b) || !(a || !b)`", "`a ^ b`", "`a != b`"], "multiple": false }, { "num": 7, "title": "3つの値の中央値 (C言語)", "problem": "\\\( 3 \\) つの整数の引数 \\\( a, b, c \\) を受け取り、その中央値を返すことを意図した以下のC言語の関数について、最も適切な説明を選んでください。\n\n```c\nint median(int a, int b, int c) {\n    if (b <= a && a <= c) return a;\n    if (c <= a && a <= b) return a;\n    if (a <= b && b <= c) return b;\n    if (c <= b && b <= a) return b;\n    if (a <= c && c <= b) return c;\n    if (b <= c && c <= a) return c;\n}\n```", "choices": ["この関数は論理的に全パターンを網羅しており、コンパイラの警告も出ず、常に安全に正しく動作する。", "引数 \\\( a, b, c \\) の値に重複がある場合（例えば \\\( a = b \\) の場合など）、条件式が競合してコンパイルエラーになる。", "数学的には全パターンを網羅しているが、どの `if` 文にも該当しないとコンパイラが判断し、値を返さずに関数が終了する可能性がある旨の警告が出る恐れがある。", "比較演算子 `=` の使い方が誤っているため、コンパイルエラーが発生する。"], "multiple": false }, { "num": 8, "title": "最大値関数 (C言語)", "problem": "非負整数を格納する要素数 \\\( length \\) の配列 \\\( a \\) の最大値を計算する関数 \\( \\\max \\) を、C言語で実装したい。 `[ BLANK ]` に入る式として**最も適切なもの**を選べ。\n\n```c\nint max(int a[], int length) {\n    int answer = 0;\n    for (int i = 0; i < length; i++) {\n        if ([ BLANK ]) {\n            answer = a[i];\n        }\n    }\n    return answer;\n}\n```", "choices": ["`answer < a[i]`", "`answer > a[i]`", "`answer <= a[i]`", "`answer >= a[i]`"], "multiple": false }, { "num": 9, "title": "偶数奇数判定のロジック (C言語)", "problem": "正の整数 \\\( n \\) が奇数であるときに \\\( 1 \\) (真)、そうでないときに \\\( 0 \\) (偽) を返す関数において、以下の `[     ]` に入る部分として**不適切**な式はどれか選んでください。\n\n```c\nint checkOdd(int n) {\n    return [     ];\n}\n```", "choices": ["`n % 2`", "`n & 1`", "`n % 2 == 1`", "`n / 2 == 1`"], "multiple": false }, { "num": 10, "title": "C言語のfor文と負の引数", "problem": "整数 \\\( 1 \\) から \\\( n \\) までの総和を計算して返す以下のC言語関数 `sum` について、**誤っている**説明を選択してください。\n\n```c\nint sum(int n) {\n    int answer = 0;\n    for (int i = 0; i < n; i++) {\n        answer += i + 1;\n    }\n    return answer;\n}\n```", "choices": ["引数 `n` に負の数（例: \\\( -1 \\)）を渡すと、for文の条件式が常に真となり、無限ループが発生する。", "`int` 型の範囲を超える大きな `n` を渡すと、計算結果がオーバーフローし、正しい総和が得られない可能性がある。", "`sum(0)` を呼び出した場合、ループ処理は一度も実行されず、戻り値として \\\( 0 \\) が返される。", "`sum(10.5)` のように浮動小数点数を渡すと、`int` 型への暗黙の型変換（切り捨て）が行われ、`sum(10)` として実行されるため、期待通りの結果にならない場合がある。"], "multiple": false }, { "num": 11, "title": "C言語での配列総和計算ループ", "problem": "要素数 `length` の整数の配列 `a` の総和を計算するC言語の `sum` 関数を実装したい。仕様通りに正しく動作し、境界外アクセスなどの未定義動作を含まないプログラムをすべて選べ。", "choices": ["```c\nint sum(int a[], int length) {\n    int ans = 0;\n    for (int i = 0; i < length; i++)\n        ans += a[i];\n    return ans;\n}\n```", "```c\nint sum(int a[], int length) {\n    int ans = 0;\n    for (int i = length; i > 0; i--)\n        ans += a[i];\n    return ans;\n}\n```", "```c\nint sum(int a[], int length) {\n    int ans = 0;\n    int i = 0;\n    while (1) {\n        if (i == length) break;\n        ans += a[i];\n        i++;\n    }\n    return ans;\n}\n```", "どれも正しく動作しない"], "multiple": true }, { "num": 12, "title": "文字列操作関数の挙動理解 (C言語)", "problem": "文字列中の小文字の数をカウントする以下のC言語関数 `count` について、**誤っている**言及はどれか？\n\n```c\n#include <ctype.h>\n\nint count(const char* s) {\n    int answer = 0;\n    for (int i = 0; s[i] != '\\0'; i++) {\n        if (islower((unsigned char)s[i])) {\n            answer++;\n        }\n    }\n    return answer;\n}\n```", "choices": ["返り値が負になることはない。", "空文字列（ `\"\"` ）に対しては、返り値は \\\( 0 \\) となる。", "変数 \\\( s \\) が指す文字列が全て小文字である場合、返り値は必ず \\\( 0 \\) になる。", "変数 \\\( s \\) が指す文字列が、印字可能でないASCIIコードを含んでいても動作する。"], "multiple": false }, { "num": 13, "title": "線形検索 (C言語)", "problem": "要素数 `length` の整数の配列 \\\( a \\) の中で、指定された値 \\\( x \\) が何番目に出現するか（先頭を \\\( 1 \\) 番目とする）を返すC言語関数 `find` に関する言及として、正しいものを選べ。\n\n```c\nint find(int a[], int length, int x) {\n    for (int i = 0; i < length; i++) {\n        if (a[i] == x) {\n            return i + 1;\n        }\n    }\n    return -1;\n}\n```", "choices": ["引数 `length` が \\\( 0 \\) だった場合は、配列の範囲外アクセス等でプログラムが異常終了する。", "もし配列 \\\( a \\) に \\\( x \\) が複数含まれている場合は、全ての出現位置を順番に返す。", "もし配列 \\\( a \\) に \\\( x \\) が含まれなかった場合は、 \\\( -1 \\) を返す。", "もし配列 \\\( a \\) に \\\( x \\) が含まれている場合、戻り値は \\\( 0 \\) から始まるインデックス（添字）となる。"], "multiple": false }, { "num": 14, "title": "整数配列の累積和 (C言語)", "problem": "要素数 \\\( N \\) の整数配列 \\\( a \\) の値をもとに、累積和を計算してグローバル配列 \\\( sum\\_of\\_a \\) に格納するプログラムを作成しました。\n\n配列 \\\( sum\\_of\\_a \\) は、\\\( sum\\_of\\_a[k] \\) が \\\( a[0] \\) から \\\( a[k-1] \\) までの和になるように構成されます（ただし \\\( sum\\_of\\_a[0] = 0 \\)）。\n\nコード中の `[ BLANK ]` に入る正しい式を選んでください。\n\n```c\n#define N 100\nint sum_of_a[N + 1];\nint a[N];\n\nvoid constructPrefixSum(void) {\n    // 累積和配列の初期化\n    for (int i = 0; i < N + 1; i++) { sum_of_a[i] = 0; }\n    \n    // 累積和の計算\n    for (int i = 0; i < N; i++) {\n        [ BLANK ]\n    }\n}\n```", "choices": ["`a[i] = sum_of_a[i+1] - sum_of_a[i];`", "`a[i] = sum_of_a[i] - sum_of_a[i-1];`", "`sum_of_a[i+1] = sum_of_a[i] + a[i];`", "`sum_of_a[i] = sum_of_a[i-1] + a[i-1];`"], "multiple": false }, { "num": 15, "title": "複数キーを持つバブルソートの条件式", "problem": "整数 \\\( x \\) を格納した要素数 \\\( N \\) の配列 \\\( A \\) と、整数 \\\( y \\) を格納した要素数 \\\( N \\) の配列 \\\( B \\) があります。ここでは便宜上、 \\\( A \\) と \\\( B \\) の同じインデックス \\\( i \\) にある要素の組を「組 \\\( i \\) 」と呼ぶことにします。\n\n以下は、組を構成する \\\( A[i] \\) と \\\( B[i] \\) の対応関係を崩さずに、「 \\\( A[i] \\) の昇順、 \\\( A[i] \\) が等しい場合は \\\( B[i] \\) の昇順」となるように、2つの配列を同時に並べ替える（バブルソート）C言語のプログラムです。空欄 `[ ア ]` に入る式として適切なものを選んでください。\n\n```c\n#define N 100\nint A[N], B[N];\n\nvoid sort_pairs() {\n    for (int i = 0; i < N; i++) {\n        for (int j = 0; j < N - 1; j++) {\n            if ([ ア ]) {\n                // Aの要素を交換\n                int tempA = A[j];\n                A[j] = A[j+1];\n                A[j+1] = tempA;\n\n                // Bの要素を交換\n                int tempB = B[j];\n                B[j] = B[j+1];\n                B[j+1] = tempB;\n            }\n        }\n    }\n}\n```", "choices": ["A[j] > A[j+1] || (A[j] == A[j+1] && B[j] > B[j+1])", "A[j] > A[j+1] && (A[j] == A[j+1] || B[j] > B[j+1])", "A[j] > A[j+1] || (A[j] == A[j+1] || B[j] > B[j+1])", "いずれも正しく動作しない"], "multiple": false }, { "num": 16, "title": "フラグによる判定 (C言語)", "problem": "要素数 \\\( n \\) の整数の配列 \\\( a \\) に対して、すべての要素が偶数であるか判定するC言語プログラムがある。変数 `found_odd` の使い方の間違いを指摘せよ（間違いは一箇所であるとする）。\n\n```c\n#include <stdio.h>\n\nvoid check_all_even(int a[], int n) {\n    int found_odd = 0;\n    for (int i = 0; i < n; i++) {\n        if (a[i] % 2 != 0) {\n            found_odd = 1;\n        }\n    }\n    if (found_odd) {\n        printf(\"すべて偶数ではありません\n\");\n    } else {\n        printf(\"すべて偶数です\n\");\n    }\n}\n```", "choices": ["初期値は `found_odd = 1;` であるべきである。", "if文の条件式は `a[i] % 2 == 0` であるべきである。", "変数の更新は `found_odd = 0;` であるべきである。", "指定されたプログラムに間違いはない。"], "multiple": false }, { "num": 17, "title": "最小値の閾値判定", "problem": "要素数 \\\( n \\) の正の整数配列 \\\( a \\) があります。配列 \\\( a \\) の最小値が \\\( 10 \\) 以下であるかどうかを判定し、その結果に従って文字列を標準出力に出力する関数を作成しました。\n\n空欄 `[ BLANK ]` に入る式として適切なものを選んでください。\n\n```c\n#include <stdio.h>\n\nvoid evaluate_min(int a[], int n) {\n    int check = 0;\n    for (int i = 0; i < n; i++) {\n        [ BLANK ]\n    }\n    if (check) {\n        printf(\"最小値は10以下です\n\");\n    } else {\n        printf(\"最小値は11以上です\n\");\n    }\n}\n```", "choices": ["`check = (a[i] <= 10) ? 1 : 0;`", "`if (a[i] <= 10) { check = 0; }`", "`if (a[i] <= 10) { check = 1; }`", "`if (a[i] < 10) { check = 1; }`"], "multiple": false }, { "num": 18, "title": "C言語における文字列配列の長さ計算", "problem": "C言語で、文字列の配列（ポインタの配列）を引数にとり、各文字列の長さを足し合わせる関数を作成した。 `[ ア ]` に入る式として正しいものはどれか？\n\n```c\n#include <string.h>\n\nint sum_lengths(const char* strings[], int num_strings) {\n    int answer = 0;\n    for (int i = 0; i < num_strings; i++) {\n        answer += [ ア ];\n    }\n    return answer;\n}\n```", "choices": ["`strlen(strings[i])`", "`sizeof(strings[i])`", "`strings[i]->length`", "`strings[i].length()`"], "multiple": false }, { "num": 19, "title": "二次元配列で特定の文字を数える", "problem": "\\\( H \\) 行 \\\( W \\) 列の二次元配列 \\\( s \\) （各要素は `char` 型の文字）の中に、文字 `'o'` がいくつ含まれているかを数えるC言語のプログラムがある。\n空欄 `[     ]` に入るコンディションとして正しいものはどれか。\n\n```c\nint count_o(int H, int W, char s[][100]) {\n    int answer = 0;\n    for (int i = 0; i < H; i++) {\n        for (int j = 0; j < W; j++) {\n            if ([     ]) {\n                answer++;\n            }\n        }\n    }\n    return answer;\n}\n```", "choices": ["`s[i, j] == \"o\"`", "`s[i][j] == \"o\"`", "`s[i, j] == 'o'`", "`s[i][j] == 'o'`"], "multiple": false }, { "num": 20, "title": "配列の要素を逆順に並べ替える", "problem": "整数型配列 `a` を **逆順**（末尾と先頭を入れ替えていく操作）に並べ替える関数がある。\n空欄 `[  ア  ]` に入る処理として正しいものはどれか。\n\n```c\nvoid reverse(int a[], int n) {\n    for (int i = 0; i < n / 2; i++) {\n        // 左端 a[i] と右端 a[n-1-i] を入れ替える\n        [  ア  ]\n    }\n}\n```", "choices": ["`a[i] = a[n-1-i];`", "`a[n-1-i] = a[i];`", "`int temp = a[i]; a[i] = a[n-1-i]; a[n-1-i] = temp;`", "`a[i] = a[i] + a[n-1-i]; a[n-1-i] = a[i] - a[n-1-i];`"], "multiple": false }];
+    const ANSWER_KEY = [[2], [2], [3], [2], [3], [0], [2], [0], [3], [0], [0, 2], [2], [2], [2], [0], [3], [2], [0], [3], [2]];
+    const DATE = '260521';
+    const TOTAL_SEC = 20 * 60;
+    let remaining = TOTAL_SEC;
+    let timerInterval = null;
+    let submitted = false;
+    let resultData = null;
+
+    // ── Markdown→HTML ─────────────────────────────────────────────
+    function mdToHtml(text) {
+      // marked使用（CDN後に実行）
+      if (typeof marked !== 'undefined') {
+        return marked.parse(text, { breaks: true });
+      }
+      return text.replace(/\n/g, '<br>');
+    }
+
+    // ── 問題カードを生成 ─────────────────────────────────────────
+    function buildQuiz() {
+      const area = document.getElementById('quiz-area');
+      area.innerHTML = '';
+      QUESTIONS.forEach((q, qi) => {
+        const card = document.createElement('div');
+        card.className = 'q-card';
+        card.id = `card-${qi}`;
+
+        const inputType = q.multiple ? 'checkbox' : 'radio';
+        const multiHint = q.multiple ? '<div class="multi-hint">※ 正しいものをすべて選んでください</div>' : '';
+
+        const choicesHtml = q.choices.map((c, ci) => {
+          const choiceHtml = (typeof marked !== 'undefined') ? marked.parse(c, { breaks: true }) : c;
+          return `<label class="choice-label" id="lbl-${qi}-${ci}">
+        <input type="${inputType}" name="q${qi}" value="${ci}"
+          onchange="onAnswer(${qi})">
+        <div class="choice-text">${choiceHtml}</div>
+      </label>`;
+        }).join('');
+
+        card.innerHTML = `
+      <div class="q-num">問 ${q.num}</div>
+      <div class="q-title">${q.title}</div>
+      <div class="q-problem" id="prob-${qi}">${mdToHtml(q.problem)}</div>
+      ${multiHint}
+      <div class="choices">${choicesHtml}</div>`;
+        area.appendChild(card);
+      });
+
+      // シンタックスハイライト
+      if (typeof hljs !== 'undefined') {
+        document.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+      }
+      // KaTeX
+      if (typeof renderMathInElement !== 'undefined') {
+        renderMathInElement(area, {
+          delimiters: [
+            { left: '\\(', right: '\\)', display: false },
+            { left: '\\[', right: '\\]', display: true }
+          ]
+        });
+      }
+    }
+
+    // ── 回答数カウント ───────────────────────────────────────────
+    function onAnswer(qi) {
+      const labels = document.querySelectorAll(`label[id^="lbl-${qi}-"]`);
+      labels.forEach(lbl => {
+        const inp = lbl.querySelector('input');
+        lbl.classList.toggle('selected', inp.checked);
+      });
+      updateAnsweredCount();
+    }
+
+    function getAnswered(qi) {
+      return [...document.querySelectorAll(`input[name="q${qi}"]`)].filter(i => i.checked).map(i => +i.value);
+    }
+
+    function updateAnsweredCount() {
+      const answered = QUESTIONS.filter((_, qi) => getAnswered(qi).length > 0).length;
+      document.getElementById('ans-num').textContent = answered;
+    }
+
+    // ── タイマー ─────────────────────────────────────────────────
+    function startTimer() {
+      const timerEl = document.getElementById('timer');
+      const fillEl = document.getElementById('progress-fill');
+      timerInterval = setInterval(() => {
+        remaining--;
+        const m = String(Math.floor(remaining / 60)).padStart(2, '0');
+        const s = String(remaining % 60).padStart(2, '0');
+        timerEl.textContent = `${m}:${s}`;
+        fillEl.style.width = (remaining / TOTAL_SEC * 100) + '%';
+        if (remaining <= 300) timerEl.className = 'warn';
+        if (remaining <= 60) timerEl.className = 'danger';
+        if (remaining <= 0) { clearInterval(timerInterval); doSubmit(); }
+      }, 1000);
+    }
+
+    // ── 採点・提出 ───────────────────────────────────────────────
+    function doSubmit() {
+      if (submitted) return;
+      submitted = true;
+      clearInterval(timerInterval);
+
+      const name = document.getElementById('student-name').value.trim() || 'anonymous';
+      const now = new Date();
+      const ts = now.toTimeString().slice(0, 8);
+
+      let score = 0;
+      const answers = {}, results = {};
+
+      QUESTIONS.forEach((q, qi) => {
+        const chosen = getAnswered(qi).sort();
+        const correct = ANSWER_KEY[qi].slice().sort();
+        const isCorrect = JSON.stringify(chosen) === JSON.stringify(correct);
+        if (isCorrect) score++;
+        answers[`q${q.num}`] = chosen;
+        results[`q${q.num}`] = isCorrect;
+
+        // 色付け
+        ANSWER_KEY[qi].forEach(ci => {
+          document.getElementById(`lbl-${qi}-${ci}`)?.classList.add('correct');
+        });
+        chosen.forEach(ci => {
+          if (!ANSWER_KEY[qi].includes(ci)) {
+            document.getElementById(`lbl-${qi}-${ci}`)?.classList.add('wrong');
+          }
+        });
+      });
+
+      resultData = {
+        date: `20${DATE.slice(0, 2)}-${DATE.slice(2, 4)}-${DATE.slice(4)}`,
+        submitted_at: ts,
+        student_id: name,
+        score: score,
+        total: QUESTIONS.length,
+        answers: answers,
+        results: results
+      };
+
+      // 全選択肢をdisable
+      document.querySelectorAll('input[type=radio],input[type=checkbox]').forEach(i => i.disabled = true);
+
+      // フッターを提出後モードに切り替え
+      document.getElementById('submit-btn').style.display = 'none';
+      document.getElementById('reshow-btn').style.display = 'inline-block';
+      document.getElementById('dl-footer-btn').style.display = 'inline-block';
+
+      // 結果表示
+      const pct = Math.round(score / QUESTIONS.length * 100);
+      document.getElementById('score-display').textContent = `${score} / ${QUESTIONS.length}`;
+      document.getElementById('result-msg').textContent =
+        pct >= 80 ? `✅ 正答率 ${pct}%  お見事です！` :
+          pct >= 60 ? `📝 正答率 ${pct}%  もう一息！` :
+            `💪 正答率 ${pct}%  復習して次に活かそう！`;
+      document.getElementById('result-overlay').classList.add('show');
+    }
+
+    document.getElementById('submit-btn').addEventListener('click', doSubmit);
+
+    document.getElementById('download-btn').addEventListener('click', () => {
+      if (!resultData) return;
+      const name = resultData.student_id.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const blob = new Blob([JSON.stringify(resultData, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = `result_${DATE}_${name}.json`; a.click();
+    });
+
+    document.getElementById('close-btn').addEventListener('click', () => {
+      document.getElementById('result-overlay').classList.remove('show');
+    });
+
+    // ── 初期化（CDN読み込み後） ─────────────────────────────────
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        buildQuiz();
+        startTimer();
+      }, 300);
+    });
+  </script>
+</body>
+
+</html>
