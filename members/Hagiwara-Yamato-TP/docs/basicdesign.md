@@ -104,7 +104,7 @@
 
 **各状態の意味：**
 
-| 状態名 | この状態のとき、何をしているか | LEDやブザーなど出力の様子 |
+| 状態名 | この状態のとき、何をしているか | LEDなど出力の様子 |
 |:--|:--|:--|
 | 待機中 | ユーザー入力を待機 | LEDライト消灯 |
 | 抽選中 | レバー（タクトスイッチ）を引いた瞬間に当選結果を内部で決定し、リールの数字を高速で回転表示 | 7セグメントディスプレイが数字を回転表示 |
@@ -161,11 +161,11 @@
 | — | （共通）待機・制御 | `loop()` | 状態に応じて処理を振り分ける | なし | なし | 常時 |
 | — | （共通）入力読出 | `readInputs()` | レバーとボタンの状態を取得 | なし | 入力状態構造体 | `loop()`内 |
 | — | （共通）抽選・表示更新 | `updateReelsAndDisplay()` | 抽選と表示を更新 | unsigned long nowMs | なし | `loop()`内 |
-| — | （共通）演出更新 | `updateEffects()` | LEDやブザーを制御 | byte state, bool isWinning | なし | `loop()`内 |
+| — | （共通）演出更新 | `updateEffects()` | LEDを制御 | byte state, bool isWinning | なし | `loop()`内 |
 | F01 | 抽選開始 | `handleStartInput()` | レバー入力で抽選を開始 | 入力状態構造体 | bool | `loop()`内 |
 | F02 | リール停止 | `handleStopInput()` | ボタン入力でリールを止める | 入力状態構造体 | byte | `loop()`内 |
 | F03 | 結果表示 | `runResultLighting()` | 結果に応じてLEDを点灯 | bool isWinning | なし | `loop()`内 |
-| A01 | 音の演出 | `playResultSound()` | 結果に応じて音を鳴らす | bool isWinning | なし | `loop()`内 |
+
 |  |  |  |  |  |  |  |
 
 > [!CAUTION]
@@ -182,7 +182,7 @@
 | リール回転更新 | 50ms | **millis** | 高速回転を維持しつつ他の処理を並行するため |
 | ボタン入力監視 | 常時 | **millis** | 入力をリアルタイムで検知するため |
 | LED点滅演出 | 500ms | **millis** | 状態に応じた演出を行うため |
-| 効果音再生 | 状態遷移時 | **millis** | 他の処理を止めずに音を再生するため |
+
 
 > [!CAUTION]
 > `delay()` を使う場合、その間はボタン入力もセンサー読み取りも**すべて止まります**。
@@ -248,7 +248,7 @@
 | 1 | 抽選開始 | `handleStartInput()` | D2（スティック） | テスト#1 |
 | 2 | リール停止 | `handleStopInput()` | D3, D4, D5（ボタン） | テスト#2 |
 | 3 | 結果表示 | `runResultLighting()` | D6, D7, D8（LED） | テスト#3 |
-| 4 | 音の演出 | `playResultSound()` | — | テスト#4 |
+
 
 ---
 
