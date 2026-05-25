@@ -52,6 +52,16 @@
 
   LED_PIN          = 13    // LED
 
+
+
+  #define ENABLE 5
+  #define DIRA 3
+  #define DIRB 4
+  ->
+  #define ENABLE 11
+  #define DIRA 6
+  #define DIRB 7
+
 【状態管理】（basic_design.md 1-2 の状態名から転記）
   currentState : int = 0   // 0:待機中 1:動作中 2:停止中
 
@@ -597,4 +607,4 @@ PIRセンサー = LOW かつ 20秒以上
 
 ---
 
-*初版: YYYY-MM-DD / AIレビュー: YYYY-MM-DD / グループレビュー後更新: YYYY-MM-DD*
+*初版: 2026-05-25 / AIレビュー: 2026-05-25 / グループレビュー後更新: 2026-05-25*
