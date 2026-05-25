@@ -33,40 +33,117 @@
 
 ```
 【ピン定義】（basic_design.md 3-1 から転記）
-  PIN_BUTTON = 2         // タクトスイッチ
-  PIN_ULTRASONIC_TRIG = 3 // 超音波センサTRIG
-  PIN_ULTRASONIC_ECHO = 4 // 超音波センサECHO
-  PIN_7SEG_SER = 11     // 74HC595 SER
-  PIN_7SEG_RCLK = 12    // 74HC595 RCLK
-  PIN_7SEG_SRCLK = 13   // 74HC595 SRCLK
-  PIN_7SEG_DIGIT1 = 5   // 4桁7セグ選択
+  PIN_BUTTON = 2          // タクトスイッチ入力ピン（INPUT_PULLUP）
+  PIN_ULTRASONIC_TRIG = 3 // 超音波センサTRIG出力ピン（パルス送信）
+  PIN_ULTRASONIC_ECHO = 4 // 超音波センサECHO入力ピン（パルス幅受信）
+  PIN_7SEG_SER = 11       // 74HC595 SER（シリアルデータ入力）
+  PIN_7SEG_RCLK = 12      // 74HC595 RCLK（ラッチクロック）
+  PIN_7SEG_SRCLK = 13     // 74HC595 SRCLK（シフトクロック）
+  PIN_7SEG_DIGIT1 = 5     // 4桁7セグ桁選択（左端）
   PIN_7SEG_DIGIT2 = 6
   PIN_7SEG_DIGIT3 = 7
-  PIN_7SEG_DIGIT4 = 8
-  PIN_7SEG_MINUTE = 9   // 1桁7セグ（分表示）
-  PIN_LED_RED = 10      // 赤LED
+  PIN_7SEG_DIGIT4 = 8     // 4桁7セグ桁選択（右端）
+  PIN_7SEG_MINUTE = 9     // 1桁7セグ（分表示、任意機能）
+  PIN_LED_RED = 10        // 赤LED出力（start/stop通知）
+
+【定数（しきい値・周期・上限値）】
+  STATE_STOP_RESET = 0            // 停止表示(00.00)
+  STATE_RUNNING = 1               // 計測中
+  STATE_STOP_HOLD = 2             // 停止表示(保持)
+  STATE_MAX_HOLD = 3              // 上限停止(59.99固定)
+
+  DEBOUNCE_DELAY_MS = 30          // ボタンチャタリング無視時間（ms）：これ以内は連続で押しても１回判定
+  LONG_PRESS_MS = 1000            // 長押し判定時間（ms）＝１秒押しっぱ
+  SENSOR_INTERVAL_MS = 50         // 超音波測定周期（ms）
+  SENSOR_DEADTIME_MS = 300        // start/stop直後の再トリガ無効時間（ms）：startしてstopが押せるようになるまでの時間
+  SENSOR_MIN_CM = 3               // センサ有効下限距離（cm）：近値
+  SENSOR_MAX_CM = 5               // センサ有効上限距離（cm）：遠値
+  SENSOR_HIT_REQUIRED = 2         // 有効化に必要な連続一致回数
+  TICK_INTERVAL_MS = 10           // 計時加算周期（ms）= 0.01秒
+  MAX_ELAPSED_CS = 5999           // 表示上限（59.99秒 = 5999cs）→１分表示にすることを考慮し、00.00を返させるか検討
+  LED_PULSE_MS = 1000             // start/stop通知LED点灯時間（ms）
+
+  EVENT_NONE = 0                  // 入力イベントなし
+  EVENT_BUTTON_SHORT = 1          // ボタン短押し
+  EVENT_BUTTON_LONG = 2           // ボタン長押し
+  EVENT_SENSOR_TRIGGER = 3        // センサ有効検知
 
 【状態管理】
-  currentState : uint8_t = 0 // 停止表示(00.00)=0, 計測中=1, 停止表示(保持)=2, 上限停止=3
-  elapsedCs : uint16_t = 0   // 計測値（1/100秒）
-  holdCs : uint16_t = 0      // 停止時保持値
+  currentState : uint8_t = STATE_STOP_RESET
+    // 現在状態を管理する（状態遷移の唯一の基準）
+    // 変更タイミング: updateStateMachine() のみ
+
+  elapsedCs : uint16_t = 0
+    // 現在の計測値（単位: centisecond = 1/100秒）
+    // 有効範囲: 0..MAX_ELAPSED_CS
+    // 更新タイミング: 計測中に updateElapsedTime() が10msごとに加算
+
+  holdCs : uint16_t = 0
+    // 停止時に表示保持する計測値
+    // 更新タイミング: RUN->STOP遷移時に captureAndHoldTime() で更新
 
 【ボタン・センサ・タイマー】
   buttonStable : bool = false
+    // デバウンス後に確定したボタン状態
+    // true=押下中, false=非押下
+
+  lastButtonRaw : bool = false
+    // 直前ループの生ボタン値（デバウンス前）
+    // チャタリング判定で差分比較に使用
+
   buttonPressStartMs : unsigned long = 0
+    // 押下開始時刻（millis）
+    // 短押し/長押しの境界判定に使用
+
   lastButtonChangeMs : unsigned long = 0
+    // 生ボタン値が最後に変化した時刻（millis）
+    // DEBOUNCE_DELAY_MS経過判定に使用
+
   distanceCm : uint16_t = 999
+    // 最新の距離測定値（cm）
+    // 999は初期化直後の無効値として扱う
+
   sensorConsecutiveHit : uint8_t = 0
+    // 閾値内距離の連続一致回数
+    // SENSOR_HIT_REQUIRED到達で有効イベント化
+
+  lastSensorReadMs : unsigned long = 0
+    // センサを最後に測定した時刻（周期実行用）
+
   lastSensorTriggerMs : unsigned long = 0
+    // センサイベントを最後に採用した時刻
+    // SENSOR_DEADTIME_MS以内の再トリガを無効化
+
   lastTickMs : unsigned long = 0
+    // 計時加算の基準時刻
+    // now - lastTickMs >= TICK_INTERVAL_MS で elapsedCs を加算
+
   ledOffAtMs : unsigned long = 0
+    // LED消灯予定時刻（millis）
+    // now < ledOffAtMs なら点灯
+
   minuteOptional : bool = false
+    // 任意機能（1桁7セグ分表示）の有効/無効フラグ
+
   isButtonEvent : bool = false
+    // 当該ループでボタンイベントが成立したか
+
   isSensorEvent : bool = false
-  inputEvent : InputEvent = NONE
+    // 当該ループでセンサイベントが成立したか
+
+  inputEvent : uint8_t = EVENT_NONE
+    // updateStateMachine()へ渡す確定イベント
+    // 同時成立時はボタン優先で確定
 
 【その他のフラグ・カウンター】
-  （自分のものを追加）
+  lastDisplayMuxMs : unsigned long = 0
+    // 7セグ多重化の更新基準時刻
+
+  currentDigitIndex : uint8_t = 0
+    // 現在点灯中の桁番号（0..3）
+
+  startupLedDone : bool = false
+    // 起動確認LEDを既に実施したか
 ```
 
 ---
@@ -440,6 +517,14 @@
 | 4 | readUltrasonicEvent() | センサーを遮蔽・範囲外に向ける | 誤動作しない | | [ ] |
 | 5 | updateStateMachine() | 状態遷移イベントを与える | 正しい状態に遷移する | | [ ] |
 | 6 | 入力統合処理 | Button押下とSensor検知を同時発生 | Buttonイベントのみ採用される | | [ ] |
+| 7 | readButtonEdge() | ボタン押下時間 999ms | 長押しではなく短押しとして判定される | | [ ] |
+| 8 | readButtonEdge() | ボタン押下時間 1000ms | 長押しとして判定される | | [ ] |
+| 9 | readButtonEdge() | ボタン押下時間 1001ms | 長押しとして判定される | | [ ] |
+| 10 | readUltrasonicEvent() | 距離 2.9cm / 3.0cm / 5.0cm / 5.1cm を順に入力 | 3.0-5.0cmのみ有効イベントになる | | [ ] |
+| 11 | readUltrasonicEvent() | 距離 0cm（異常値）を入力 | 無効値として破棄されイベント化しない | | [ ] |
+| 12 | readUltrasonicEvent() | 距離 400cm超（異常値）を入力 | 無効値として破棄されイベント化しない | | [ ] |
+| 13 | updateStateMachine() | start/stop直後299msで再入力、次に300msで再入力 | 299msは無効、300msは有効 | | [ ] |
+| 14 | resetStopwatch() | 全状態（停止初期/計測中/停止保持/上限停止）で長押し | すべて00.00へリセットされる | | [ ] |
 
 ### 5-2. 出力系テスト
 
@@ -450,6 +535,8 @@
 | 3 | updateDisplay() | state=2（停止表示(保持)） | 停止値が保持されて表示される | | [ ] |
 | 4 | updateDisplay() | state=3（上限停止） | 59.99で固定表示される | | [ ] |
 | 5 | updateLedPulse() | start/stop時 | LEDが1秒点灯する | | [ ] |
+| 6 | formatMainDisplay() | elapsedCs=0 / 1 / 999 / 1000 / 5999 | 00.00 / 00.01 / 09.99 / 10.00 / 59.99 表示になる | | [ ] |
+| 7 | updateDisplay() | elapsedCs=5999で1秒経過させる | 表示が59.99のまま固定される | | [ ] |
 
 ### 5-3. タイミング・並行動作テスト
 
@@ -458,6 +545,8 @@
 | 1 | delay()による処理停止がないか | 計測中にボタンやセンサを操作 | 入力が無視されない | | [ ] |
 | 2 | millis()タイマーの周期精度 | 計測値の増加をストップウォッチで確認 | 10ms単位で正確に加算される | | [ ] |
 | 3 | 7セグ多重化のちらつき | 7セグ表示を目視確認 | ちらつきが目立たない | | [ ] |
+| 4 | 上限境界遷移 | elapsedCs=5998から進める | 5999到達で上限停止へ遷移し、それ以上加算しない | | [ ] |
+| 5 | センサ測定周期 | 一定距離を保持してログ確認 | SENSOR_INTERVAL_MS（50ms）周期で測定される | | [ ] |
 
 ---
 
@@ -495,7 +584,7 @@
 ・多重トリガ・不感時間(start/stop直後300ms以内の入力が無視されるか)
 ・異常値・ノイズ処理(センサ値0cm/400cm超、ボタンのノイズ入力時の動作)
 
-**対応した内容：**
+**対応した内容：**Section 5 に境界値・異常系・不感時間・上限遷移・全状態リセットの単体テストを追記した。
 
 ---
 
@@ -505,7 +594,7 @@
 
 | No | 指摘内容 | 指摘者 | 対応 |
 |:---|:---|:---|:---|
-| 1 |  |  |  |
+| 1 | ピン定義 | 大橋 | ピンを指す位置が自分と違うが、それは合ってるのか |
 | 2 |  |  |  |
 | 3 |  |  |  |
 
@@ -516,4 +605,4 @@
 
 ---
 
-*初版: YYYY-MM-DD / AIレビュー: YYYY-MM-DD / グループレビュー後更新: YYYY-MM-DD*
+*初版: YYYY-MM-DD / AIレビュー: YYYY-MM-DD / グループレビュー後更新: 2026-05-25*
