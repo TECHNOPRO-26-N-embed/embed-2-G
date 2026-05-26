@@ -76,7 +76,7 @@
 
 ### 4-1. グループ共通部品（グループ全員で使うもの・1つ）
 
-**共通部品：**4 Digit-7 Segment Display
+**共通部品：**4 Digit-7 Segment Display（LED NUMERIC DISPLAY, 4 DIGIT）
 
 **選定理由：**四桁の数字で様々なことが表現できそうだったから。
 
