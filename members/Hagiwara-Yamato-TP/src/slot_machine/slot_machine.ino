@@ -1,17 +1,5 @@
-# ソースコードフォルダ
-
-実習のソースコード（.c / .ino ファイル等）をここに置いてください。
-
-## ファイル例
-
-```
-unit1_hello.c
-unit2_led.ino
-```
-
-```cpp
-// Arduinoスケッチ: 手持無沙汰解消スロット
-
+// 手持無沙汰解消スロット - Arduinoスケッチ
+// 詳細設計書に基づく実装
 #include <Arduino.h>
 #include <TM1637Display.h>
 
@@ -70,7 +58,6 @@ struct InputState {
 };
 
 void setup() {
-  // ピンモード設定
   pinMode(PIN_STICK_ANALOG, INPUT);
   pinMode(PIN_STOP_1, INPUT_PULLUP);
   pinMode(PIN_STOP_2, INPUT_PULLUP);
@@ -78,21 +65,14 @@ void setup() {
   pinMode(PIN_LED_1, OUTPUT);
   pinMode(PIN_LED_2, OUTPUT);
   pinMode(PIN_LED_3, OUTPUT);
-
-  // 7セグ表示初期化
   display.setBrightness(7);
-
-  // 乱数初期化
   randomSeed(analogRead(0));
-
-  // 初期状態
   currentState = STATE_WAIT;
   for (int i = 0; i < REEL_COUNT; i++) {
     reels[i] = 0;
     fixed[i] = false;
   }
   stopCount = 0;
-
   // LED初期演出
   for (int i = 0; i < 3; i++) {
     digitalWrite(PIN_LED_1 + i, HIGH);
@@ -105,7 +85,6 @@ void loop() {
   unsigned long now = millis();
   InputState inputs = readInputs();
   updateEffects(now);
-
   switch (currentState) {
     case STATE_WAIT:
       display.showNumberDec(0, true);
@@ -118,14 +97,12 @@ void loop() {
         currentState = STATE_SPINNING;
       }
       break;
-
     case STATE_SPINNING:
       updateReelsAndDisplay(now);
       if (handleStopInput(inputs, now)) {
         currentState = (stopCount == REEL_COUNT) ? STATE_STOPPING : STATE_SPINNING;
       }
       break;
-
     case STATE_STOPPING:
       updateReelsAndDisplay(now);
       if (stopCount == REEL_COUNT) {
@@ -133,7 +110,6 @@ void loop() {
         currentState = STATE_RESULT;
       }
       break;
-
     case STATE_RESULT:
       if (now >= resultEndMs) {
         for (int i = 0; i < 3; i++) {
@@ -151,11 +127,9 @@ InputState readInputs() {
   bool startActiveNow = (stickYValue <= 800);
   state.startPressed = (startActiveNow && !startActivePrev);
   startActivePrev = startActiveNow;
-
   state.stop1Pressed = (digitalRead(PIN_STOP_1) == LOW);
   state.stop2Pressed = (digitalRead(PIN_STOP_2) == LOW);
   state.stop3Pressed = (digitalRead(PIN_STOP_3) == LOW);
-
   return state;
 }
 
