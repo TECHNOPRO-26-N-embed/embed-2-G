@@ -1,7 +1,6 @@
 // 手持無沙汰解消スロット - Arduinoスケッチ
-// 詳細設計書に基づく実装
+// 12ピン直結型 Four Digital Seven Segment Display 対応版
 #include <Arduino.h>
-#include <TM1637Display.h>
 
 // ピン定義
 #define PIN_STICK_ANALOG A0
@@ -10,9 +9,16 @@
 #define PIN_STOP_3 5
 #define PIN_LED_1 6
 #define PIN_LED_2 7
-#define PIN_LED_3 8
-#define PIN_TM1637_CLK 9
-#define PIN_TM1637_DIO 10
+#define PIN_LED_3 12
+
+// 74HC595経由の7セグ制御ピン（Four_Digital.ino方式）
+#define PIN_7SEG_LATCH 9
+#define PIN_7SEG_CLOCK 10
+#define PIN_7SEG_DATA 8
+// 桁選択端子（左:百, 中:十, 右:一）
+#define DIGIT1_PIN A3
+#define DIGIT2_PIN A4
+#define DIGIT3_PIN A5
 
 // 状態定義
 #define STATE_WAIT 0
@@ -28,6 +34,12 @@ const unsigned long RESULT_HOLD_MS = 1000;
 const byte WIN_NUMBER = 7;
 const byte REEL_COUNT = 3;
 const byte MAX_DIGIT = 9;
+
+// Four_Digital.inoと同じ7セグ表示テーブル
+const uint8_t SEG_TABLE[] = {
+  0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7d, 0x07, 0x7f, 0x6f,
+  0x77, 0x7c, 0x39, 0x5e, 0x79, 0x71, 0x00
+};
 
 // グローバル変数
 byte currentState = STATE_WAIT;
@@ -45,9 +57,8 @@ byte ledIndex = 0;
 byte reels[REEL_COUNT] = {0, 0, 0};
 bool fixed[REEL_COUNT] = {false, false, false};
 byte stopCount = 0;
-
-// TM1637ディスプレイ
-TM1637Display display(PIN_TM1637_CLK, PIN_TM1637_DIO);
+int displayDigits[3] = {0, 0, 0};
+volatile byte muxDigitIndex = 0;
 
 // 入力状態構造体
 struct InputState {
@@ -57,7 +68,52 @@ struct InputState {
   bool stop3Pressed;
 };
 
+void setDisplayInt(int num) {
+  if (num > 999) num = 999;
+  if (num < 0) num = 0;
+  displayDigits[0] = num / 100;
+  displayDigits[1] = (num / 10) % 10;
+  displayDigits[2] = num % 10;
+}
+
+void displayDigit(uint8_t num) {
+  if (num > 16) return;
+  digitalWrite(PIN_7SEG_LATCH, LOW);
+  shiftOut(PIN_7SEG_DATA, PIN_7SEG_CLOCK, MSBFIRST, SEG_TABLE[num]);
+  digitalWrite(PIN_7SEG_LATCH, HIGH);
+}
+
+void setAllDigitsOff() {
+  digitalWrite(DIGIT1_PIN, LOW);
+  digitalWrite(DIGIT2_PIN, LOW);
+  digitalWrite(DIGIT3_PIN, LOW);
+}
+
+void refreshDisplay() {
+  setAllDigitsOff();
+  displayDigit(displayDigits[muxDigitIndex]);
+  switch(muxDigitIndex) {
+    case 0: digitalWrite(DIGIT1_PIN, HIGH); break;
+    case 1: digitalWrite(DIGIT2_PIN, HIGH); break;
+    case 2: digitalWrite(DIGIT3_PIN, HIGH); break;
+  }
+  muxDigitIndex = (muxDigitIndex + 1) % 3;
+}
+
+byte prevState = 255;
+
+const char* stateName(byte state) {
+  switch(state) {
+    case STATE_WAIT: return "WAIT";
+    case STATE_SPINNING: return "SPINNING";
+    case STATE_STOPPING: return "STOPPING";
+    case STATE_RESULT: return "RESULT";
+    default: return "UNKNOWN";
+  }
+}
+
 void setup() {
+  Serial.begin(9600);
   pinMode(PIN_STICK_ANALOG, INPUT);
   pinMode(PIN_STOP_1, INPUT_PULLUP);
   pinMode(PIN_STOP_2, INPUT_PULLUP);
@@ -65,7 +121,15 @@ void setup() {
   pinMode(PIN_LED_1, OUTPUT);
   pinMode(PIN_LED_2, OUTPUT);
   pinMode(PIN_LED_3, OUTPUT);
-  display.setBrightness(7);
+  pinMode(PIN_7SEG_LATCH, OUTPUT);
+  pinMode(PIN_7SEG_CLOCK, OUTPUT);
+  pinMode(PIN_7SEG_DATA, OUTPUT);
+
+  pinMode(DIGIT1_PIN, OUTPUT);
+  pinMode(DIGIT2_PIN, OUTPUT);
+  pinMode(DIGIT3_PIN, OUTPUT);
+  setAllDigitsOff();
+
   randomSeed(analogRead(0));
   currentState = STATE_WAIT;
   for (int i = 0; i < REEL_COUNT; i++) {
@@ -73,6 +137,8 @@ void setup() {
     fixed[i] = false;
   }
   stopCount = 0;
+  setDisplayInt(0);
+
   // LED初期演出
   for (int i = 0; i < 3; i++) {
     digitalWrite(PIN_LED_1 + i, HIGH);
@@ -83,11 +149,19 @@ void setup() {
 
 void loop() {
   unsigned long now = millis();
+  refreshDisplay();
+
   InputState inputs = readInputs();
   updateEffects(now);
+
+  if (currentState != prevState) {
+    Serial.print("State: ");
+    Serial.println(stateName(currentState));
+    prevState = currentState;
+  }
   switch (currentState) {
     case STATE_WAIT:
-      display.showNumberDec(0, true);
+      setDisplayInt(0);
       if (handleStartInput(inputs, now)) {
         isWinning = (random(0, 30) == 0);
         stopCount = 0;
@@ -97,12 +171,14 @@ void loop() {
         currentState = STATE_SPINNING;
       }
       break;
+
     case STATE_SPINNING:
       updateReelsAndDisplay(now);
       if (handleStopInput(inputs, now)) {
         currentState = (stopCount == REEL_COUNT) ? STATE_STOPPING : STATE_SPINNING;
       }
       break;
+
     case STATE_STOPPING:
       updateReelsAndDisplay(now);
       if (stopCount == REEL_COUNT) {
@@ -110,6 +186,7 @@ void loop() {
         currentState = STATE_RESULT;
       }
       break;
+
     case STATE_RESULT:
       if (now >= resultEndMs) {
         for (int i = 0; i < 3; i++) {
@@ -177,7 +254,7 @@ void updateReelsAndDisplay(unsigned long now) {
       reels[i] = random(0, MAX_DIGIT + 1);
     }
   }
-  display.showNumberDecEx(reels[0] * 100 + reels[1] * 10 + reels[2], 0, true);
+  setDisplayInt(reels[0] * 100 + reels[1] * 10 + reels[2]);
 }
 
 void updateEffects(unsigned long now) {
