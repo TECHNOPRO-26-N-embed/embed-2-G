@@ -54,13 +54,14 @@
 
 
 ---
-  #define ENABLE 5
-  #define DIRA 3
-  #define DIRB 4
-  変更　->
-  #define ENABLE 11
-  #define DIRA 6
-  #define DIRB 7
+// L293D Motor Driver IC の接続変更
+// ENABLE : D5 → D11
+// DIRA   : D3 → D6
+// DIRB   : D4 → D7
+
+#define ENABLE 11
+#define DIRA   6
+#define DIRB   7
 ---
 
 【状態管理】（basic_design.md 1-2 の状態名から転記）
@@ -82,7 +83,7 @@
 
 【定数】
   stopTime : const unsigned long = 20000   // 20秒
-  maxPwm   : const int = 100               // PWMの最大値
+  maxPwm   : const int = 255               // PWMの最大値
 ```
 
 ---
@@ -136,9 +137,6 @@
 【処理の流れ】
 
 ＜毎ループ実行すること＞
-
-
-【処理の流れ】
 
 
 ＜毎ループ実行すること＞
@@ -258,8 +256,8 @@
 3. 待機中または停止中の場合は showOff() を呼び出す
 
 【エラー・異常ケース】
-- pwmValue が0未満または100を超える場合:
-  0〜100の範囲に補正して表示する
+- pwmValue が0未満または255を超える場合:
+  0〜255の範囲に補正して表示する
 ```
 
 ---
@@ -280,7 +278,7 @@
 
 【エラー・異常ケース】
 - pwmValue が異常な値の場合:
-  0〜100の範囲に補正してから出力する
+  0〜255の範囲に補正してから出力する
 ```
 
 ---
@@ -308,7 +306,7 @@
 
 ### `showPwmValue()` — PWM値を表示する
 
-**basic_design.md 2-2 との対応：** 4桁7セグメントディスプレイにPWM値を0000〜0100で表示する
+**basic_design.md 2-2 との対応：** 4桁7セグメントディスプレイにPWM値を0000〜0255で表示する
 
 **引数：** `pwmValue`（int）: 表示するPWM値
 
@@ -321,7 +319,7 @@
 3. 表示を更新する
 
 【エラー・異常ケース】
-- pwmValue が0未満または100を超える場合:
+- pwmValue が0未満または255を超える場合:
   表示できる範囲に補正する
 ```
 
@@ -494,13 +492,12 @@ PIRセンサー = LOW かつ 20秒以上
 
 | No | テスト対象の関数 | 入力・操作 | 期待する結果 | 実際の結果 | 合否 |
 |:---|:---|:---|:---|:---|:---|
-| 1 | `readPirSensor()` | PIRセンサーの前で動く | true が返る | | [×] |
+| 1 | `readPirSensor()` | PIRセンサーの前で動く | true が返る | | [〇] |
 | 2 | `readPirSensor()` | PIRセンサーの前に人がいない状態にする | false が返る | | [〇] |
-| 3 | `readPirSensor()` | センサー周辺で短時間だけ動く | 誤検知してもすぐに状態が切り替わらない | | [×] |
-| 4 | `checkNoMotionTimeout()` | 最後の検知から20秒未満 | false が返る | | [〇] |
-| 5 | `checkNoMotionTimeout()` | 最後の検知から20秒以上経過 | true が返る | | [〇] |
-| 6 | `updateState()` | detected=true, currentState=0（待機中）を渡す | currentState が1（動作中）に変わる | | [〇] |
-| 7 | `updateState()` | detected=false, 20秒以上未検知 | currentState が2（停止中）に変わる | | [〇] |
+| 3 | `checkNoMotionTimeout()` | 最後の検知から20秒未満 | false が返る | | [〇] |
+| 4 | `checkNoMotionTimeout()` | 最後の検知から20秒以上経過 | true が返る | | [〇] |
+| 5 | `updateState()` | detected=true, currentState=0（待機中）を渡す | currentState が1（動作中）に変わる | | [〇] |
+| 6 | `updateState()` | detected=false, 20秒以上未検知 | currentState が2（停止中）に変わる | | [〇] |
 
 
 ### 5-2. 出力系テスト
@@ -542,7 +539,8 @@ PIRセンサー = LOW かつ 20秒以上
 
 基本的には実装できる内容になっていますが、いくつかバグになりやすい箇所があります。
 
-まず、`pwmValue` は 0〜100 として設計されていますが、Arduino の `analogWrite()` は 0〜255 の値を使うため、実装時に変換処理が必要です。
+pwmValue は 0〜255 の範囲で設計されているため、
+Arduino の analogWrite() にそのまま使用できる。
 
 また、`millis()` を使う時間計算では、`int` ではなく `unsigned long` を使う必要があります。特に 20秒判定では、`millis() - lastDetectMillis >= stopTime` の形で計算すると安全です。
 
@@ -568,7 +566,7 @@ PIRセンサー = LOW かつ 20秒以上
 
 現在の単体テスト仕様は、基本的な動作確認としては概ね十分です。
 ただし、より正確に検証するためには、いくつか追加すると良い項目があります。
-特に、pwmValue の 0 と 100、未検知時間が 20秒ちょうどの場合、想定外の状態値の場合などは境界値として確認した方がよいです。
+特に、pwmValue の 0 と 255、未検知時間が 20秒ちょうどの場合、想定外の状態値の場合などは境界値として確認した方がよいです。
 すべての異常系を網羅する必要はありませんが、代表的な境界値を少し追加すると、単体テスト仕様としてより分かりやすくなります。
 
 
@@ -582,7 +580,7 @@ PIRセンサー = LOW かつ 20秒以上
 | 8 | `checkNoMotionTimeout()` | 20秒ちょうど経過 | true が返る |
 | 9 | `updateState()` | 想定外の state を設定 | 待機中に戻る |
 | 10 | `startFan()` | pwmValue = 0 | モーター停止 |
-| 11 | `startFan()` | pwmValue = 100 | 最大出力で回転 |
+| 11 | `startFan()` | pwmValue = 255 | 最大出力で回転 |
 | 12 | `showPwmValue()` | pwmValue = 0 | 0000 を表示 |
 | 13 | `updateLed()` | 想定外の state | LED 消灯 |
 | 14 | 停止判定 | 19秒経過時に確認 | モーター停止しない |
@@ -612,4 +610,4 @@ PIRセンサー = LOW かつ 20秒以上
 | 2 | センサー感度を変更するテストを行う必要があります。 | 
 | 3 |  |  |  |
 
-*初版: 2026-05-25 / AIレビュー: 2026-05-25 / グループレビュー後更新: 2026-05-25*
+*初版: 2026-05-25 / AIレビュー: 2026-05-25 / グループレビュー後更新: 2026-05-27*

@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>朝チャレ C言語 — 26/05/25</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box }
+    body { font-family: 'Noto Sans JP', sans-serif; background: #f5f3ef; color: #1a1a2e; min-height: 100vh }
+    #header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(255,255,255,0.97); backdrop-filter: blur(8px);
+      border-bottom: 1px solid #e0ddd8;
+      padding: 12px 32px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06)
+    }
+    #header h1 { font-size: 1.1em; font-weight: 900; color: #4a6fa5; white-space: nowrap }
+    #name-wrap { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 220px }
+    #name-wrap label { font-size: 0.9em; color: #666; white-space: nowrap }
+    #student-name {
+      background: #fff; border: 1.5px solid #d0cdc8; border-radius: 8px;
+      color: #1a1a2e; padding: 6px 12px; font-size: 0.95em; font-family: inherit; width: 200px
+    }
+    #student-name:focus { outline: none; border-color: #4a6fa5; box-shadow: 0 0 0 3px rgba(74,111,165,.15) }
+    #timer {
+      font-size: 1.6em; font-weight: 900; color: #1e8449;
+      font-variant-numeric: tabular-nums; letter-spacing: 0.05em; transition: color .3s
+    }
+    #timer.warn { color: #d35400 }
+    #timer.danger { color: #c0392b; animation: pulse .8s infinite }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    #progress-bar { height: 3px; background: #e0ddd8; position: fixed; top: 0; left: 0; right: 0; z-index: 200 }
+    #progress-fill { height: 100%; background: linear-gradient(90deg, #4a6fa5, #2471a3); transition: width .5s }
+    main { max-width: 900px; margin: 0 auto; padding: 24px 20px 120px }
+    .q-card {
+      background: #fff; border: 1px solid #e0ddd8; border-radius: 12px;
+      padding: 28px 32px; margin-bottom: 20px;
+      transition: border-color .2s; box-shadow: 0 2px 8px rgba(0,0,0,.04)
+    }
+    .q-card:focus-within { border-color: #4a6fa5; box-shadow: 0 2px 12px rgba(74,111,165,.12) }
+    .q-num { font-size: 0.8em; font-weight: 700; color: #4a6fa5; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px }
+    .q-title { font-size: 1.1em; font-weight: 700; color: #1a1a2e; margin-bottom: 16px }
+    .q-problem { font-size: 0.97em; line-height: 1.8; color: #333; margin-bottom: 20px }
+    .q-problem pre { background: #f8f8f6; border: 1px solid #e0ddd8; border-radius: 8px; padding: 16px; overflow-x: auto; margin: 12px 0 }
+    .q-problem code.hljs { background: transparent; padding: 0; font-family: 'Source Code Pro', Consolas, monospace; font-size: 0.92em }
+    .q-problem p code, .q-problem li code { background: #efefeb; padding: 2px 6px; border-radius: 4px; font-family: 'Source Code Pro', Consolas, monospace; font-size: 0.9em; color: #2471a3; border: 1px solid #e0ddd8 }
+    .q-exp {
+      display: none; margin-top: 16px;
+      background: #f0f9f4; border: 1.5px solid #a9dfbf; border-radius: 8px;
+      padding: 16px 20px; font-size: 0.93em; line-height: 1.8; color: #1a5232
+    }
+    .q-exp.show { display: block }
+    .q-exp .exp-label { font-size: 0.8em; font-weight: 700; color: #1e8449; letter-spacing: .06em; margin-bottom: 8px }
+    .q-exp p code, .q-exp li code { background: rgba(0,0,0,.06); padding: 2px 6px; border-radius: 4px; font-family: 'Source Code Pro', Consolas, monospace; font-size: 0.88em }
+    .q-exp pre { background: #e8f8f0; border: 1px solid #a9dfbf; border-radius: 6px; padding: 12px; overflow-x: auto; margin: 8px 0 }
+    .q-exp pre code { background: transparent; font-family: 'Source Code Pro', Consolas, monospace; font-size: 0.88em }
+    .choices { display: flex; flex-direction: column; gap: 8px }
+    .choice-label {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: #fafaf8; border: 1.5px solid #e0ddd8; border-radius: 8px;
+      padding: 12px 16px; cursor: pointer; transition: all .15s; user-select: none
+    }
+    .choice-label:hover { border-color: #4a6fa5; background: #f0f4fa }
+    .choice-label.selected { border-color: #4a6fa5; background: #eaf1fb }
+    .choice-label.correct { border-color: #1e8449 !important; background: #eafaf1 !important }
+    .choice-label.wrong { border-color: #c0392b !important; background: #fdedec !important }
+    .choice-label input { margin-top: 3px; flex-shrink: 0; accent-color: #4a6fa5 }
+    .choice-text { font-size: 0.95em; line-height: 1.7; color: #2a2a2a }
+    .choice-text pre { background: #f8f8f6; border: 1px solid #e0ddd8; border-radius: 6px; padding: 12px; overflow-x: auto; margin: 4px 0 }
+    .choice-text code.hljs { background: transparent; font-family: 'Source Code Pro', Consolas, monospace; font-size: 0.88em }
+    .choice-text code { background: #efefeb; padding: 2px 5px; border-radius: 4px; font-family: 'Source Code Pro', Consolas, monospace; font-size: 0.88em; color: #2471a3 }
+    .multi-hint { font-size: 0.78em; color: #d35400; margin-bottom: 8px; font-weight: 700 }
+    #footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(255,255,255,0.97); border-top: 1px solid #e0ddd8;
+      padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      box-shadow: 0 -2px 8px rgba(0,0,0,.06)
+    }
+    #answered-count { font-size: 0.95em; color: #666 }
+    #answered-count span { color: #4a6fa5; font-weight: 700 }
+    #submit-btn {
+      background: #4a6fa5; color: #fff; border: none; padding: 12px 36px;
+      border-radius: 8px; font-size: 1.05em; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: background .2s; box-shadow: 0 2px 8px rgba(74,111,165,.25)
+    }
+    #submit-btn:hover { background: #3a5f95 }
+    #submit-btn:disabled { opacity: .4; cursor: default }
+    #reshow-btn {
+      background: #fff; border: 1.5px solid #4a6fa5; color: #4a6fa5;
+      padding: 10px 20px; border-radius: 8px; font-size: 0.95em; font-weight: 700;
+      cursor: pointer; font-family: inherit; transition: all .2s
+    }
+    #reshow-btn:hover { background: #eaf1fb }
+    #dl-footer-btn {
+      background: #1e8449; color: #fff; border: none; padding: 10px 20px;
+      border-radius: 8px; font-size: 0.95em; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: background .2s
+    }
+    #dl-footer-btn:hover { background: #196f3d }
+    #result-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.45); z-index: 300;
+      align-items: center; justify-content: center
+    }
+    #result-overlay.show { display: flex }
+    #result-box {
+      background: #fff; border: 1px solid #e0ddd8; border-radius: 16px;
+      padding: 40px 48px; max-width: 480px; width: 90%; text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,.12)
+    }
+    #result-box h2 { font-size: 2em; font-weight: 900; margin-bottom: 8px; color: #1a1a2e }
+    #score-display { font-size: 4em; font-weight: 900; margin: 16px 0; color: #4a6fa5 }
+    #result-box p { color: #555; font-size: 0.95em; line-height: 1.7; margin-bottom: 24px }
+    #download-btn {
+      background: #4a6fa5; color: #fff; border: none; padding: 14px 40px;
+      border-radius: 8px; font-size: 1em; font-weight: 700; cursor: pointer;
+      font-family: inherit; width: 100%; margin-bottom: 12px; transition: background .2s
+    }
+    #download-btn:hover { background: #3a5f95 }
+    #close-btn {
+      background: #fff; border: 1.5px solid #e0ddd8; color: #666;
+      padding: 10px 32px; border-radius: 8px; font-size: 0.9em;
+      cursor: pointer; font-family: inherit; transition: all .2s
+    }
+    #close-btn:hover { border-color: #4a6fa5; color: #4a6fa5 }
+  </style>
+</head>
+<body>
+  <div id="progress-bar"><div id="progress-fill" style="width:100%"></div></div>
+  <div id="header">
+    <h1>&#x1F9E0; 朝チャレ &mdash; C言語 26/05/25</h1>
+    <div id="name-wrap">
+      <label for="student-name">GitHub ID&#xff1a;</label>
+      <input id="student-name" type="text" placeholder="GitHub username を入力" autocomplete="off">
+    </div>
+    <div id="timer">20:00</div>
+  </div>
+
+  <main id="quiz-area"></main>
+
+  <div id="footer">
+    <div id="answered-count">回答済み <span id="ans-num">0</span> / 20 問</div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button id="reshow-btn" style="display:none"
+        onclick="document.getElementById('result-overlay').classList.add('show')">
+        &#x1F4CA; 結果を再表示
+      </button>
+      <button id="dl-footer-btn" style="display:none" onclick="document.getElementById('download-btn').click()">
+        &#x1F4E5; JSONをダウンロード
+      </button>
+      <button id="submit-btn">提出する</button>
+    </div>
+  </div>
+
+  <div id="result-overlay">
+    <div id="result-box">
+      <h2>結果</h2>
+      <div id="score-display"></div>
+      <p id="result-msg"></p>
+      <button id="download-btn">&#x1F4E5; result_260525.json をダウンロード</button>
+      <button id="close-btn">答え合わせを見る</button>
+    </div>
+  </div>
+
+  <script>
+    // ----------------------------------------------------------------
+    // 問題データ
+    // choices / problem はすべてプレーンテキスト or HTML文字列として記述。
+    // Markdown記法・LaTeX記法は使用しない。
+    // コードブロックは <pre><code class="language-c">...</code></pre> で直接記述。
+    // ----------------------------------------------------------------
+    const QUESTIONS = [
+      {
+        num: 1,
+        title: "整数除算の切り上げ (C言語)",
+        problem: `<p>1以上の整数 <em>a</em>, <em>b</em> について、<em>a</em>/<em>b</em> の切り上げを計算するC言語の関数を考える。</p>
+<pre><code class="language-c">int ceil_div(int a, int b) {
+    return /* [ BLANK ] */;
+}</code></pre>
+<p><code>[ BLANK ]</code> に入る式として、<strong>誤っている</strong>ものはどれか？ただし、C言語における <code>x / y</code> は、整数 <em>x</em> を <em>y</em> で割った商（小数点以下は切り捨て）である。</p>`,
+        choices: [
+          '<code>(a - 1) / b + 1</code>',
+          '<code>(a + b - 1) / b</code>',
+          '<code>a / b + (a % b != 0)</code>',
+          '<code>a / b + 1</code>'
+        ],
+        multiple: false,
+        correctIndices: [3],
+        exp: `<p><code>a / b + 1</code> が<strong>誤り</strong>の式です。例えば <em>a</em>=4, <em>b</em>=2 の場合、<code>4/2 + 1 = 3</code> となりますが、切り上げの正解は 2 です。割り切れるときに余分に 1 を足してしまいます。</p>
+<ul>
+  <li><code>(a - 1) / b + 1</code>：正しい式。<em>a</em> から 1 を引いて境界値を調整してから割ります。</li>
+  <li><code>(a + b - 1) / b</code>：正しい式。分子に <em>b</em>&minus;1 を足してから割ることで切り上げを実現します。</li>
+  <li><code>a / b + (a % b != 0)</code>：正しい式。割り切れない場合のみ 1 を足します。</li>
+</ul>`
+      },
+      {
+        num: 2,
+        title: "論理演算の等価変換 (C言語)",
+        problem: `<p><code>bool</code> 型（<code>true</code> または <code>false</code>）の変数 <code>a</code>, <code>b</code> を引数にとり、排他的論理和（XOR: どちらか一方だけが <code>true</code> のとき <code>true</code>）を返す関数 <code>f</code> がある。</p>
+<p>以下の関数 <code>g</code> の <code>[ ア ]</code> に選択肢のコードを記述したとき、関数 <code>f</code> と等価に<strong>ならない</strong>ものはどれか？</p>
+<pre><code class="language-c">#include &lt;stdbool.h&gt; // bool, true, false を使うために必要
+
+bool f(bool a, bool b) {
+    return (a &amp;&amp; !b) || (!a &amp;&amp; b);
+}
+
+bool g(bool a, bool b) {
+    return [ ア ];
+}</code></pre>`,
+        choices: [
+          '<code>!((!a || b) &amp;&amp; (a || !b));</code>',
+          '<code>!(!a || b) || !(a || !b);</code>',
+          '<code>a ^ b;</code>',
+          '上記の全てで、g は f と等価な関数になる'
+        ],
+        multiple: false,
+        correctIndices: [0],
+        exp: `<p>関数 <code>f</code> は XOR（排他的論理和）を実装しています。</p>
+<ul>
+  <li><code>!((!a || b) &amp;&amp; (a || !b))</code>：ド・モルガンの法則で展開すると <code>(a &amp;&amp; !b) || (!a &amp;&amp; b)</code> の<strong>否定</strong>（XNOR）になります。<code>f</code> とは出力が反転し、等価に<strong>なりません</strong>。<strong>正解</strong>。</li>
+  <li><code>!(!a || b) || !(a || !b)</code>：ド・モルガンの法則により <code>(a &amp;&amp; !b) || (!a &amp;&amp; b)</code> と変形でき、<code>f</code> と等価。</li>
+  <li><code>a ^ b</code>：C言語のビット単位XOR演算子。<code>bool</code> 値（0 または 1）に対してはXORと同じ結果になります。等価。</li>
+</ul>
+<p>1つ目が等価でないため、「全てで等価になる」は誤りです。</p>`
+      },
+      {
+        num: 3,
+        title: "3つの値の中央値 (C言語)",
+        problem: `<p>3つの整数の引数 <em>a</em>, <em>b</em>, <em>c</em> を受け取り、その中央値を返すことを意図した以下のC言語の関数について、最も適切な説明を選んでください。</p>
+<pre><code class="language-c">int median(int a, int b, int c) {
+    if (b &lt;= a &amp;&amp; a &lt;= c) return a;
+    if (c &lt;= a &amp;&amp; a &lt;= b) return a;
+    if (a &lt;= b &amp;&amp; b &lt;= c) return b;
+    if (c &lt;= b &amp;&amp; b &lt;= a) return b;
+    if (a &lt;= c &amp;&amp; c &lt;= b) return c;
+    if (b &lt;= c &amp;&amp; c &lt;= a) return c;
+}</code></pre>`,
+        choices: [
+          'この関数は論理的に全パターンを網羅しており、コンパイラの警告も出ず、常に安全に正しく動作する。',
+          '引数 a, b, c の値に重複がある場合（例えば a = b の場合など）、条件式が競合してコンパイルエラーになる。',
+          '数学的には全パターンを網羅しているが、どの if 文にも該当しないとコンパイラが判断し、値を返さずに関数が終了する可能性がある旨の警告が出る恐れがある。',
+          '比較演算子の使い方が誤っているため、コンパイルエラーが発生する。'
+        ],
+        multiple: false,
+        correctIndices: [2],
+        exp: `<p>6つの <code>if</code> 文は数学的には3つの数の大小関係の全順列を網羅しています。しかし<strong>コンパイラはこの事実を証明できない</strong>ため、「どの <code>if</code> にも入らなかった場合に値を返さずに終了するパスがある」と判断し、<code>control reaches end of non-void function</code> のような警告を出す可能性があります。</p>
+<p>安全にするには最後の <code>if</code> を <code>else</code> に置き換えるか、関数の末尾にデフォルトの <code>return</code> 文を追加します。</p>
+<ul>
+  <li>選択肢1：コンパイラ警告が出るため不適切。</li>
+  <li>選択肢2：条件式が重複していても、最初に真になった <code>if</code> で <code>return</code> されるだけでコンパイルエラーにはなりません。</li>
+  <li>選択肢4：文法的に誤りはありません。</li>
+</ul>`
+      },
+      {
+        num: 4,
+        title: "複数キーを持つバブルソートの条件式",
+        problem: `<p>整数を格納した要素数 N の配列 A と、整数を格納した要素数 N の配列 B があります。同じインデックス i にある要素の組を「組 i」と呼びます。</p>
+<p>以下は、組の対応関係を崩さずに、「A[i] の昇順、A[i] が等しい場合は B[i] の昇順」となるように2つの配列を同時に並べ替える（バブルソート）C言語のプログラムです。空欄 <code>[ ア ]</code> に入る式として適切なものを選んでください。</p>
+<pre><code class="language-c">#define N 100
+int A[N], B[N];
+
+void sort_pairs() {
+    for (int i = 0; i &lt; N; i++) {
+        for (int j = 0; j &lt; N - 1; j++) {
+            if ([ ア ]) {
+                int tempA = A[j];
+                A[j] = A[j+1];
+                A[j+1] = tempA;
+
+                int tempB = B[j];
+                B[j] = B[j+1];
+                B[j+1] = tempB;
+            }
+        }
+    }
+}</code></pre>`,
+        choices: [
+          '<code>A[j] &gt; A[j+1] || (A[j] == A[j+1] &amp;&amp; B[j] &gt; B[j+1])</code>',
+          '<code>A[j] &gt; A[j+1] &amp;&amp; (A[j] == A[j+1] || B[j] &gt; B[j+1])</code>',
+          '<code>A[j] &gt; A[j+1] || (A[j] == A[j+1] || B[j] &gt; B[j+1])</code>',
+          'いずれも正しく動作しない'
+        ],
+        multiple: false,
+        correctIndices: [0],
+        exp: `<p>交換が必要な条件は以下の2つのいずれかです。</p>
+<ol>
+  <li>第一キー A の大小関係が逆転している：<code>A[j] &gt; A[j+1]</code></li>
+  <li>第一キー A は等しいが、第二キー B の大小関係が逆転している：<code>A[j] == A[j+1] &amp;&amp; B[j] &gt; B[j+1]</code></li>
+</ol>
+<p>これらを <code>||</code> で結合したものが正解です。</p>
+<ul>
+  <li>選択肢2：<code>A[j] &gt; A[j+1] &amp;&amp; A[j] == A[j+1]</code> は A が逆転かつ等しいという矛盾した条件になり、常に偽になります。誤り。</li>
+  <li>選択肢3：後半が <code>|| B[j] &gt; B[j+1]</code> のため、A の一致条件なしで B だけ逆転していても交換してしまいます。誤り。</li>
+</ul>`
+      },
+      {
+        num: 5,
+        title: "整数型と実数型 (C言語)",
+        problem: `<p>後輩は、<code>size_t</code> 型で要素数を受け取り、整数型配列 <code>a</code> のすべての要素の平均値を計算する関数を、以下のようにC言語で書いてあなたに見せてきた。後輩が書いたこのプログラムの説明として、<strong>誤っているもの</strong>を1つ選べ。</p>
+<pre><code class="language-c">#include &lt;stddef.h&gt; // size_t のため
+
+double mean(int a[], size_t size) {
+    int answer = 0;
+    for (size_t i = 0; i &lt; size; i++) {
+        answer += a[i];
+    }
+    return answer / size;
+}</code></pre>`,
+        choices: [
+          '引数 <code>size</code> が 0 の時に、この関数は未定義の動作（ゼロ除算）を引き起こす。',
+          '配列 <code>a</code> の長さが 1 以上の場合、オーバーフローの可能性を除けば、この関数は必ず値を返却するが、小数点以下は切り捨てられる。',
+          '配列 <code>a</code> が長くかつ要素が大きい場合に、オーバーフローを起こす可能性がある。',
+          '戻り値の型が <code>double</code> であるため、<code>return</code> 文の <code>answer / size</code> は自動的に浮動小数点数として計算され、小数点以下の精度も保たれる。'
+        ],
+        multiple: false,
+        correctIndices: [3],
+        exp: `<p>選択肢4が<strong>誤り</strong>です。<code>answer</code> は <code>int</code> 型、<code>size</code> は <code>size_t</code>（符号なし整数）型であるため、<code>answer / size</code> は<strong>整数除算</strong>が行われ、商の小数点以下は切り捨てられます。その切り捨てられた整数が <code>double</code> にキャストされるため、精度は失われています。</p>
+<p>正しい結果を得るには <code>(double)answer / size</code> のように明示的なキャストが必要です。</p>
+<p>その他の選択肢は全て正しい記述です。</p>`
+      },
+      {
+        num: 6,
+        title: "if文の到達可能性の分析（その1）",
+        problem: `<p>以下のC言語の関数 <code>describe</code> は、整数 <em>n</em> を引数に受け取り、何らかの 1 文字を標準出力に表示します。この関数の引数に任意の整数を与えて関数呼び出しを行った時、<strong>絶対に表示される事がない</strong>出力結果はどれですか？</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+
+void describe(int n) {
+    if (n &gt;= 0) {
+        if (n &lt; 3) {
+            printf("A\n");
+        } else {
+            printf("B\n");
+        }
+    } else {
+        if (n &lt; 3) {
+            printf("C\n");
+        } else {
+            printf("D\n");
+        }
+    }
+}</code></pre>`,
+        choices: ['A', 'B', 'C', 'D', '上記の全ての文字が表示されうる'],
+        multiple: false,
+        correctIndices: [3],
+        exp: `<p>外側の <code>else</code> ブロックは <em>n</em> &lt; 0 の場合に実行されます。このブロック内では <code>if (n &lt; 3)</code> の判定を行いますが、<em>n</em> が負の数であれば<strong>常に n &lt; 3 は真</strong>となります。</p>
+<p>したがって、内側の条件分岐では常に真のブロックが実行され <code>printf("C\n")</code> が呼ばれます。<code>else</code> 側である <code>printf("D\n")</code> の行へ到達することは数学的にあり得ません。よって、<strong>D</strong> が絶対に表示されない文字です。</p>`
+      },
+      {
+        num: 7,
+        title: "if文の到達可能性の分析（その2）",
+        problem: `<p>以下のC言語の関数 <code>grade</code> は、整数 <em>n</em> を引数に受け取り、何らかの 1 文字を標準出力に表示します。この関数の引数に任意の整数を与えて関数呼び出しを行ったとき、<strong>絶対に表示されることがない</strong>文字はどれですか？</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+
+void grade(int n) {
+    if (n &gt;= 0) {
+        if (n &gt; 100) {
+            printf("A\n");
+        } else {
+            printf("B\n");
+        }
+    } else {
+        if (n &lt; -100) {
+            printf("C\n");
+        } else {
+            printf("D\n");
+        }
+    }
+}</code></pre>`,
+        choices: ['A', 'B', 'C', 'D', '上記の全ての文字が表示されうる'],
+        multiple: false,
+        correctIndices: [4],
+        exp: `<p>各文字が表示される具体的な入力値は次のとおりです。</p>
+<ul>
+  <li><em>n</em> = 101 → n &ge; 0 かつ n &gt; 100 → <strong>A が表示される</strong></li>
+  <li><em>n</em> = 0 → n &ge; 0 かつ n &le; 100 → <strong>B が表示される</strong></li>
+  <li><em>n</em> = &minus;101 → n &lt; 0 かつ n &lt; &minus;100 → <strong>C が表示される</strong></li>
+  <li><em>n</em> = &minus;1 → n &lt; 0 かつ n &ge; &minus;100 → <strong>D が表示される</strong></li>
+</ul>
+<p>全ての文字に対して表示される入力値が存在するため、「絶対に表示されない文字」は存在しません。</p>`
+      },
+      {
+        num: 8,
+        title: "フラグによる判定 (C言語)",
+        problem: `<p>要素数 <em>n</em> の整数の配列 <em>a</em> に対して、すべての要素が偶数であるか判定するC言語プログラムがある。変数 <code>found_odd</code> の使い方の間違いを指摘せよ（間違いは一箇所であるとする）。</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+
+void check_all_even(int a[], int n) {
+    int found_odd = 0;
+    for (int i = 0; i &lt; n; i++) {
+        if (a[i] % 2 != 0) {
+            found_odd = 1;
+        }
+    }
+    if (found_odd) {
+        printf("すべて偶数ではありません\n");
+    } else {
+        printf("すべて偶数です\n");
+    }
+}</code></pre>`,
+        choices: [
+          '初期値は <code>found_odd = 1;</code> であるべきである。',
+          'if文の条件式は <code>a[i] % 2 == 0</code> であるべきである。',
+          '変数の更新は <code>found_odd = 0;</code> であるべきである。',
+          '指定されたプログラムに間違いはない。'
+        ],
+        multiple: false,
+        correctIndices: [3],
+        exp: `<p>このプログラムは「反例探索（counter-example search）」のロジックを使用しています。</p>
+<ol>
+  <li>最初に <code>found_odd = 0</code>（奇数はまだ見つかっていない）で初期化。</li>
+  <li>配列を走査し、もし奇数（<code>a[i] % 2 != 0</code>）が見つかれば <code>found_odd = 1</code> に更新。</li>
+  <li>ループ終了後、<code>found_odd</code> が真なら「すべて偶数ではありません」と出力。</li>
+</ol>
+<p>変数名・条件式・更新処理・出力判定のすべてが整合しており、<strong>プログラムに間違いはありません</strong>。</p>`
+      },
+      {
+        num: 9,
+        title: "C言語のfor文と負の引数",
+        problem: `<p>整数 1 から <em>n</em> までの総和を計算して返す以下のC言語関数 <code>sum</code> について、<strong>誤っている</strong>説明を選択してください。</p>
+<pre><code class="language-c">int sum(int n) {
+    int answer = 0;
+    for (int i = 0; i &lt; n; i++) {
+        answer += i + 1;
+    }
+    return answer;
+}</code></pre>`,
+        choices: [
+          '引数 <code>n</code> に負の数（例: &minus;1）を渡すと、for文の条件式が常に真となり、無限ループが発生する。',
+          '<code>int</code> 型の範囲を超える大きな <code>n</code> を渡すと、計算結果がオーバーフローし、正しい総和が得られない可能性がある。',
+          '<code>sum(0)</code> を呼び出した場合、ループ処理は一度も実行されず、戻り値として 0 が返される。',
+          '<code>sum(10.5)</code> のように浮動小数点数を渡すと、<code>int</code> 型への暗黙の型変換（切り捨て）が行われ、<code>sum(10)</code> として実行されるため、期待通りの結果にならない場合がある。'
+        ],
+        multiple: false,
+        correctIndices: [0],
+        exp: `<p>選択肢1が<strong>誤り</strong>です。<code>sum(-1)</code> を呼び出した場合、変数 <code>i</code> は 0 で初期化されますが、継続条件 <code>i &lt; n</code> つまり <code>0 &lt; -1</code> が<strong>偽</strong>となるため、ループ本体は一度も実行されません。したがって無限ループにはならず、関数は即座に 0 を返します。</p>
+<p>その他の選択肢は正しい記述です。</p>`
+      },
+      {
+        num: 10,
+        title: "C言語での配列総和計算ループ",
+        problem: `<p>要素数 <code>length</code> の整数の配列 <code>a</code> の総和を計算するC言語の <code>sum</code> 関数を実装したい。仕様通りに正しく動作し、境界外アクセスなどの未定義動作を含まないプログラムを<strong>すべて</strong>選べ。</p>`,
+        choices: [
+          '<pre><code class="language-c">int sum(int a[], int length) {\n    int ans = 0;\n    for (int i = 0; i &lt; length; i++)\n        ans += a[i];\n    return ans;\n}</code></pre>',
+          '<pre><code class="language-c">int sum(int a[], int length) {\n    int ans = 0;\n    for (int i = length; i &gt; 0; i--)\n        ans += a[i];\n    return ans;\n}</code></pre>',
+          '<pre><code class="language-c">int sum(int a[], int length) {\n    int ans = 0;\n    int i = 0;\n    while (1) {\n        if (i == length) break;\n        ans += a[i];\n        i++;\n    }\n    return ans;\n}</code></pre>',
+          'どれも正しく動作しない'
+        ],
+        multiple: true,
+        correctIndices: [0, 2],
+        exp: `<ul>
+  <li><strong>1番目（正解）</strong>：<code>i</code> が 0 から <code>length - 1</code> まで動く標準的な <code>for</code> ループ。正しく動作します。</li>
+  <li><strong>2番目（誤り）</strong>：<code>i = length</code> から始まり、最初のアクセスで <code>a[length]</code> を参照します。これは配列の範囲外アクセス（未定義動作）です。</li>
+  <li><strong>3番目（正解）</strong>：<code>i == length</code> で <code>break</code> するため <code>a[0]</code> から <code>a[length-1]</code> のみにアクセス。正しく動作します。</li>
+</ul>`
+      },
+      {
+        num: 11,
+        title: "整数配列の累積和 (C言語)",
+        problem: `<p>要素数 N の整数配列 <code>a</code> の値をもとに、累積和を計算してグローバル配列 <code>prefix</code> に格納するプログラムを作成しました。</p>
+<p>配列 <code>prefix</code> は、<code>prefix[k]</code> が <code>a[0]</code> から <code>a[k-1]</code> までの和になるように構成されます（ただし <code>prefix[0] = 0</code>）。</p>
+<p>コード中の <code>[ BLANK ]</code> に入る正しい式を選んでください。</p>
+<pre><code class="language-c">#define N 5
+int a[N] = {3, 1, 4, 1, 5};
+int prefix[N + 1];
+
+void build(void) {
+    for (int i = 0; i &lt; N + 1; i++) { prefix[i] = 0; }
+    for (int i = 0; i &lt; N; i++) {
+        [ BLANK ]
+    }
+}</code></pre>
+<p>例: <code>a = {3, 1, 4, 1, 5}</code> であれば <code>prefix = {0, 3, 4, 8, 9, 14}</code> となる。</p>`,
+        choices: [
+          '<code>a[i] = prefix[i+1] - prefix[i];</code>',
+          '<code>a[i] = prefix[i] - prefix[i-1];</code>',
+          '<code>prefix[i+1] = prefix[i] + a[i];</code>',
+          '<code>prefix[i] = prefix[i-1] + a[i-1];</code>'
+        ],
+        multiple: false,
+        correctIndices: [2],
+        exp: `<p>累積和の定義：<code>prefix[i+1]</code> = 配列 <code>a</code> の先頭から i+1 個の和 = <code>prefix[i]</code> + <code>a[i]</code>。</p>
+<ul>
+  <li><code>prefix[i+1] = prefix[i] + a[i];</code>：<strong>正解</strong>。i=0 のとき <code>prefix[1] = prefix[0] + a[0]</code> で正しく計算されます。</li>
+  <li><code>prefix[i] = prefix[i-1] + a[i-1];</code>：i=0 のとき <code>prefix[-1]</code> に配列外アクセスが発生します。誤り。</li>
+  <li><code>a[i] = ...</code> の選択肢：入力配列 <code>a</code> を書き換えてしまいます。誤り。</li>
+</ul>`
+      },
+      {
+        num: 12,
+        title: "最大値関数 (C言語)",
+        problem: `<p><strong>負の値も含む</strong>可能性がある要素数 <em>length</em> の配列 <em>a</em> の最大値を計算する関数 max を、C言語で実装したい。ただし配列は要素数が 1 以上であることが保証されている。<code>[ BLANK ]</code> に入る初期値として<strong>最も適切なもの</strong>を選べ。</p>
+<pre><code class="language-c">int max(int a[], int length) {
+    int answer = [ BLANK ];
+    for (int i = 1; i &lt; length; i++) {
+        if (answer &lt; a[i]) {
+            answer = a[i];
+        }
+    }
+    return answer;
+}</code></pre>`,
+        choices: ['<code>0</code>', '<code>-1</code>', '<code>a[0]</code>', '<code>2147483647</code>'],
+        multiple: false,
+        correctIndices: [2],
+        exp: `<p>配列に<strong>負の値も含まれる</strong>可能性がある場合、初期値を <code>0</code> や <code>-1</code> に設定すると、全要素が負の場合（例: すべての要素が &minus;10）に誤った結果を返します。</p>
+<p>配列の最初の要素 <code>a[0]</code> を初期値とすることで、どのような値の配列に対しても正しく動作します。なお、このコードはループが <code>i = 1</code> から始まるため、<code>a[0]</code> は比較の基準として使われます。</p>
+<ul>
+  <li><code>0</code>：全要素が負の場合に誤り。</li>
+  <li><code>-1</code>：&minus;1 より小さい値が全要素のとき誤り。</li>
+  <li><code>a[0]</code>：<strong>正解</strong>。</li>
+  <li><code>2147483647</code>：INT_MAX を初期値にすると、i=1 からのループでは <code>a[0]</code> と比較されず、<code>a[0]</code> が最大値のときに誤った結果を返す可能性があります。</li>
+</ul>`
+      },
+      {
+        num: 13,
+        title: "偶数奇数判定のロジック (C言語)",
+        problem: `<p>正の整数 <em>n</em> が奇数であるときに 1（真）、そうでないときに 0（偽）を返す関数において、以下の <code>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;]</code> に入る部分として<strong>不適切</strong>な式はどれか選んでください。</p>
+<pre><code class="language-c">int checkOdd(int n) {
+    return [     ];
+}</code></pre>`,
+        choices: [
+          '<code>n % 2</code>',
+          '<code>n &amp; 1</code>',
+          '<code>n % 2 == 1</code>',
+          '<code>n / 2 == 1</code>'
+        ],
+        multiple: false,
+        correctIndices: [3],
+        exp: `<p>この問題は、奇数判定として「機能しない」ものを選ぶ問題です。</p>
+<ul>
+  <li><code>n % 2</code>：奇数を 2 で割った余りは 1 となり、偶数の場合は 0。C言語では非ゼロは真とみなされるため、正しい実装。</li>
+  <li><code>n &amp; 1</code>：最下位ビットが 1 であれば奇数。高速で一般的な正しい実装。</li>
+  <li><code>n % 2 == 1</code>：余りが 1 かどうかを比較演算子で判定。論理的に正しい。</li>
+  <li><code>n / 2 == 1</code>：<strong>誤り</strong>。これは「n を 2 で割った商が 1 である」場合に真となります。これが真になるのは n が 2 または 3 のときだけです。例えば n = 5（奇数）の場合、<code>5 / 2</code> は <code>2</code> となり、<code>2 == 1</code> は偽になるため正しく奇数判定ができません。</li>
+</ul>`
+      },
+      {
+        num: 14,
+        title: "3の倍数判定 (C言語)",
+        problem: `<p>正の整数 <em>n</em> が <strong>3の倍数</strong>であるときに 1（真）、そうでないときに 0（偽）を返す関数において、<code>[ BLANK ]</code> に入る部分として<strong>不適切</strong>な式はどれか選んでください。</p>
+<pre><code class="language-c">int is_multiple_of_3(int n) {
+    return [ BLANK ];
+}</code></pre>`,
+        choices: [
+          '<code>n % 3 == 0</code>',
+          '<code>!(n % 3)</code>',
+          '<code>n % 3 != 0</code>',
+          '<code>(n / 3) * 3 == n</code>'
+        ],
+        multiple: false,
+        correctIndices: [2],
+        exp: `<p>「3の倍数」は <code>n % 3 == 0</code> が真の場合です。<code>n % 3 != 0</code> は「3の倍数<strong>でない</strong>」ときに真となるため、正反対の判定になります。</p>
+<ul>
+  <li><code>n % 3 == 0</code>：余りが 0 のときに真 → 3の倍数。正しい。</li>
+  <li><code>!(n % 3)</code>：<code>n % 3</code> が 0 のとき <code>!0 = 1</code>（真）→ 3の倍数。正しい。</li>
+  <li><code>n % 3 != 0</code>：<strong>誤り</strong>（3の倍数でないときに真）。</li>
+  <li><code>(n / 3) * 3 == n</code>：整数除算の性質から、3の倍数のときのみ成立。正しい。</li>
+</ul>`
+      },
+      {
+        num: 15,
+        title: "最小値の閾値判定",
+        problem: `<p>要素数 <em>n</em> の正の整数配列 <em>a</em> があります。配列 <em>a</em> の最小値が <strong>10 以下</strong>であるかどうかを判定し、その結果に従って文字列を標準出力に出力する関数を作成しました。</p>
+<p>空欄 <code>[ BLANK ]</code> に入る式として<strong>正しいもの</strong>を選んでください。</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+
+void evaluate_min(int a[], int n) {
+    int check = 0;
+    for (int i = 0; i &lt; n; i++) {
+        [ BLANK ]
+    }
+    if (check) {
+        printf("最小値は10以下です\n");
+    } else {
+        printf("最小値は11以上です\n");
+    }
+}</code></pre>`,
+        choices: [
+          '<code>check = (a[i] &lt;= 10) ? 1 : 0;</code>',
+          '<code>if (a[i] &lt;= 10) { check = 0; }</code>',
+          '<code>if (a[i] &lt;= 10) { check = 1; }</code>',
+          '<code>if (a[i] &lt; 10) { check = 1; }</code>'
+        ],
+        multiple: false,
+        correctIndices: [2],
+        exp: `<p>「配列に 10 以下の値が 1 つでも存在すれば、最小値も必ず 10 以下」というロジックです。</p>
+<ul>
+  <li><code>check = (a[i] &lt;= 10) ? 1 : 0;</code>：ループのたびに <code>check</code> が上書きされ、最後の要素の判定結果だけが残ります。誤り。</li>
+  <li><code>if (a[i] &lt;= 10) { check = 0; }</code>：条件を満たしたときに <code>check</code> を 0 にするため、フラグが機能しません。誤り。</li>
+  <li><code>if (a[i] &lt;= 10) { check = 1; }</code>：条件を満たした時点でフラグを立て、それ以降に 0 に戻されることもありません。<strong>正解</strong>。</li>
+  <li><code>if (a[i] &lt; 10) { check = 1; }</code>：条件が「<strong>10 未満</strong>」になっており、<code>a[i] == 10</code> のケースを見逃します。誤り。</li>
+</ul>`
+      },
+      {
+        num: 16,
+        title: "文字列操作関数の挙動理解 (C言語)",
+        problem: `<p>文字列中の<strong>大文字</strong>の数をカウントする以下のC言語関数 <code>count_upper</code> について、<strong>誤っている</strong>言及はどれか？</p>
+<pre><code class="language-c">#include &lt;ctype.h&gt;
+
+int count_upper(const char* s) {
+    int answer = 0;
+    for (int i = 0; s[i] != '\0'; i++) {
+        if (isupper((unsigned char)s[i])) {
+            answer++;
+        }
+    }
+    return answer;
+}</code></pre>`,
+        choices: [
+          '返り値が負になることはない。',
+          '空文字列（<code>""</code>）に対しては、返り値は 0 となる。',
+          '変数 <code>s</code> が指す文字列が全て大文字である場合、返り値は必ず 0 になる。',
+          '変数 <code>s</code> が指す文字列が、印字可能でないASCIIコードを含んでいても動作する。'
+        ],
+        multiple: false,
+        correctIndices: [2],
+        exp: `<p>選択肢3が<strong>誤り</strong>です。文字列が全て大文字であれば、<code>isupper</code> が全ての文字で真となり <code>answer</code> が文字数分インクリメントされます。よって返り値は文字数（正の値）であり、「必ず 0 になる」という記述は誤りです。</p>
+<p>その他の選択肢は全て正しい記述です。</p>
+<ul>
+  <li><code>answer</code> は 0 で初期化され加算しか行われないため負になりません。</li>
+  <li>空文字列の場合はループが一度も実行されないため 0 を返します。</li>
+  <li><code>(unsigned char)s[i]</code> へのキャストにより、印字不可能な文字でも安全に処理されます。</li>
+</ul>`
+      },
+      {
+        num: 17,
+        title: "線形検索 (C言語)",
+        problem: `<p>要素数 <em>length</em> の整数の配列 <em>a</em> の中で、指定された値 <em>x</em> が最初に出現する <strong>0始まりのインデックス</strong> を返すC言語関数 <code>find_index</code> に関する言及として、正しいものを選べ。</p>
+<pre><code class="language-c">int find_index(int a[], int length, int x) {
+    for (int i = 0; i &lt; length; i++) {
+        if (a[i] == x) {
+            return i;
+        }
+    }
+    return -1;
+}</code></pre>`,
+        choices: [
+          '引数 <code>length</code> が 0 だった場合、配列の範囲外アクセスが起きプログラムが異常終了する。',
+          'もし配列 <em>a</em> に <em>x</em> が複数含まれている場合は、全ての出現インデックスを返す。',
+          'もし配列 <em>a</em> に <em>x</em> が含まれなかった場合は、&minus;1 を返す。',
+          '戻り値は必ず 1 以上の正の整数になる。'
+        ],
+        multiple: false,
+        correctIndices: [2],
+        exp: `<p>選択肢3が<strong>正解</strong>です。ループを最後まで実行しても <em>x</em> が見つからなかった場合、<code>return -1;</code> が実行されます。</p>
+<ul>
+  <li><code>length</code> が 0 の場合：<code>i &lt; length</code> が最初から偽となりループに入らず、-1 を返します。異常終了はしません。誤り。</li>
+  <li>複数含まれている場合：最初に見つかった位置だけを <code>return i;</code> で返して関数を終了します。全インデックスは返しません。誤り。</li>
+  <li>戻り値が必ず 1 以上：<code>i = 0</code> で見つかった場合は <code>return 0;</code> となるため誤り。また見つからない場合は &minus;1 を返します。</li>
+</ul>`
+      },
+      {
+        num: 18,
+        title: "配列のソート (C言語)",
+        problem: `<p>整数型配列 <code>a</code> を<strong>降順</strong>（大きい順）にソートするバブルソート関数がある。配列の要素数は <code>n</code> とします。空欄 <code>[ ア ]</code> に入る比較条件として正しいものはどれか。</p>
+<pre><code class="language-c">void sort_desc(int a[], int n) {
+    for (int i = 0; i &lt; n - 1; i++) {
+        for (int j = 0; j &lt; n - 1 - i; j++) {
+            if ([ ア ]) {
+                int temp = a[j];
+                a[j] = a[j+1];
+                a[j+1] = temp;
+            }
+        }
+    }
+}</code></pre>`,
+        choices: [
+          '<code>a[j] &gt; a[j+1]</code>',
+          '<code>a[j] &lt; a[j+1]</code>',
+          '<code>a[j] == a[j+1]</code>',
+          '<code>a[j] &gt;= a[j+1]</code>'
+        ],
+        multiple: false,
+        correctIndices: [1],
+        exp: `<p><strong>降順</strong>（大きい順）ソートでは、左の要素が右より<strong>小さい</strong>場合に交換することで、大きい値が前に移動します。</p>
+<ul>
+  <li><code>a[j] &gt; a[j+1]</code>：昇順ソートの条件。逆になります。誤り。</li>
+  <li><code>a[j] &lt; a[j+1]</code>：左が右より小さい → 逆順なので交換 → <strong>正解（降順）</strong>。</li>
+  <li><code>a[j] == a[j+1]</code>：等しい場合のみ交換。ソートになりません。誤り。</li>
+  <li><code>a[j] &gt;= a[j+1]</code>：等値でも交換するため無駄な操作が増え、かつ昇順にならない。誤り。</li>
+</ul>`
+      },
+      {
+        num: 19,
+        title: "切り捨て除算 (C言語)",
+        problem: `<p>1以上の整数 <em>a</em>, <em>b</em> について、<em>a</em>/<em>b</em> の<strong>切り捨て</strong>を計算するC言語の式を考える。</p>
+<pre><code class="language-c">int floor_div(int a, int b) {
+    return [ BLANK ];
+}</code></pre>
+<p><code>[ BLANK ]</code> に入る式として、<strong>正しいもの</strong>はどれか？ただし、C言語における <code>x / y</code>（x, y は正の整数）は、小数点以下を切り捨てた商を返す。</p>`,
+        choices: [
+          '<code>a / b - 1</code>',
+          '<code>a / b</code>',
+          '<code>(a - 1) / b</code>',
+          '<code>(a + b - 1) / b</code>'
+        ],
+        multiple: false,
+        correctIndices: [1],
+        exp: `<p>C言語では、正の整数同士の <code>/</code> 演算は<strong>切り捨て除算</strong>（小数点以下を切り捨てた商）を返します。そのため <code>a / b</code> がそのまま切り捨て除算の結果です。</p>
+<ul>
+  <li><code>a / b - 1</code>：切り捨てた結果からさらに 1 を引いてしまいます。誤り。</li>
+  <li><code>a / b</code>：正の整数同士の整数除算 = 切り捨て。<strong>正解</strong>。</li>
+  <li><code>(a - 1) / b</code>：切り上げ計算のために用いる式であり、切り捨てとは異なります。誤り。</li>
+  <li><code>(a + b - 1) / b</code>：切り上げ除算の計算式です。誤り。</li>
+</ul>`
+      },
+      {
+        num: 20,
+        title: "入出力 (C言語)",
+        problem: `<p>以下のコードは、標準入力から文字列を受け取り、特定の条件で出力を行うC言語のプログラムである。このプログラムの挙動に関する記述として、<strong>正しいもの</strong>を選べ。</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void) {
+    char s[100];
+    while (1) {
+        if (scanf("%99s", s) != 1) {
+            break;
+        }
+        if (strcmp(s, "quit") == 0) {
+            break;
+        } else {
+            printf("echo: %s\n", s);
+        }
+    }
+    return 0;
+}</code></pre>`,
+        choices: [
+          '文字列 <code>Quit</code>（<code>quit</code> ではないことに注意）を入力すると、プログラムが終了する。',
+          '文字列 <code>quitting</code> を入力しても、プログラムは終了する。',
+          '文字列 <code>hello</code> を入力すると、<code>echo: hello</code> と表示し、次の入力を待つ（ループする）。',
+          '文字列 <code>quit</code> を入力すると、<code>echo: quit</code> と表示してからプログラムが終了する。'
+        ],
+        multiple: false,
+        correctIndices: [2],
+        exp: `<ul>
+  <li><code>Quit</code> を入力：<code>strcmp(s, "quit")</code> は大文字・小文字を区別するため、<code>"Quit"</code> は <code>"quit"</code> と一致せず、<code>echo: Quit</code> と表示してループを続けます。終了しません。誤り。</li>
+  <li><code>quitting</code> を入力：<code>"quitting"</code> は <code>"quit"</code> と一致しないため、<code>echo: quitting</code> と表示してループを続けます。誤り。</li>
+  <li><code>hello</code> を入力：<code>"quit"</code> と一致しないため、<code>echo: hello</code> と表示して次の入力を待ちます。<strong>正解</strong>。</li>
+  <li><code>quit</code> を入力：<code>strcmp(s, "quit") == 0</code> が真となり <code>break</code> でループを抜けます。<code>printf</code> は実行されません。誤り。</li>
+</ul>`
+      }
+    ];
+
+    // 正解インデックス（0ベース）
+    const ANSWER_KEY = QUESTIONS.map(q => q.correctIndices);
+    const DATE = '260525';
+    const TOTAL_SEC = 20 * 60;
+    let remaining = TOTAL_SEC;
+    let timerInterval = null;
+    let submitted = false;
+    let resultData = null;
+
+    function buildQuiz() {
+      const area = document.getElementById('quiz-area');
+      area.innerHTML = '';
+      QUESTIONS.forEach((q, qi) => {
+        const card = document.createElement('div');
+        card.className = 'q-card';
+        card.id = 'card-' + qi;
+
+        const inputType = q.multiple ? 'checkbox' : 'radio';
+        const multiHint = q.multiple
+          ? '<div class="multi-hint">※ 正しいものをすべて選んでください</div>'
+          : '';
+
+        const choicesHtml = q.choices.map((c, ci) => {
+          return '<label class="choice-label" id="lbl-' + qi + '-' + ci + '">'
+            + '<input type="' + inputType + '" name="q' + qi + '" value="' + ci + '" onchange="onAnswer(' + qi + ')">'
+            + '<div class="choice-text">' + c + '</div>'
+            + '</label>';
+        }).join('');
+
+        card.innerHTML =
+          '<div class="q-num">問 ' + q.num + '</div>'
+          + '<div class="q-title">' + q.title + '</div>'
+          + '<div class="q-problem" id="prob-' + qi + '">' + q.problem + '</div>'
+          + multiHint
+          + '<div class="choices">' + choicesHtml + '</div>'
+          + '<div class="q-exp" id="exp-' + qi + '"><div class="exp-label">✅ 解説</div><div id="exp-body-' + qi + '">' + q.exp + '</div></div>';
+
+        area.appendChild(card);
+      });
+
+      // highlight.js によるコードブロックの構文強調
+      if (typeof hljs !== 'undefined') {
+        document.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+      }
+    }
+
+    function onAnswer(qi) {
+      document.querySelectorAll('label[id^="lbl-' + qi + '-"]').forEach(lbl => {
+        lbl.classList.toggle('selected', lbl.querySelector('input').checked);
+      });
+      updateAnsweredCount();
+    }
+
+    function getAnswered(qi) {
+      return [...document.querySelectorAll('input[name="q' + qi + '"]')]
+        .filter(i => i.checked).map(i => +i.value);
+    }
+
+    function updateAnsweredCount() {
+      const answered = QUESTIONS.filter((_, qi) => getAnswered(qi).length > 0).length;
+      document.getElementById('ans-num').textContent = answered;
+    }
+
+    function startTimer() {
+      const timerEl = document.getElementById('timer');
+      const fillEl  = document.getElementById('progress-fill');
+      timerInterval = setInterval(() => {
+        remaining--;
+        const m = String(Math.floor(remaining / 60)).padStart(2, '0');
+        const s = String(remaining % 60).padStart(2, '0');
+        timerEl.textContent = m + ':' + s;
+        fillEl.style.width = (remaining / TOTAL_SEC * 100) + '%';
+        if (remaining <= 300) timerEl.className = 'warn';
+        if (remaining <= 60)  timerEl.className = 'danger';
+        if (remaining <= 0)   { clearInterval(timerInterval); doSubmit(); }
+      }, 1000);
+    }
+
+    function doSubmit() {
+      if (submitted) return;
+      submitted = true;
+      clearInterval(timerInterval);
+
+      const name = document.getElementById('student-name').value.trim() || 'anonymous';
+      const ts   = new Date().toTimeString().slice(0, 8);
+      let score  = 0;
+      const answers = {}, results = {};
+
+      QUESTIONS.forEach((q, qi) => {
+        const chosen  = getAnswered(qi).sort((a,b) => a-b);
+        const correct = ANSWER_KEY[qi].slice().sort((a,b) => a-b);
+        const isOK    = JSON.stringify(chosen) === JSON.stringify(correct);
+        if (isOK) score++;
+        answers['q' + q.num] = chosen;
+        results['q' + q.num] = isOK;
+
+        // 選択肢の色付け
+        q.choices.forEach((_, ci) => {
+          const lbl = document.getElementById('lbl-' + qi + '-' + ci);
+          if (!lbl) return;
+          lbl.querySelector('input').disabled = true;
+          const isCorrectChoice = ANSWER_KEY[qi].includes(ci);
+          const isChosen = chosen.includes(ci);
+          if (isCorrectChoice) lbl.classList.add('correct');
+          else if (isChosen)   lbl.classList.add('wrong');
+        });
+
+        // 解説を表示
+        document.getElementById('exp-' + qi).classList.add('show');
+      });
+
+      resultData = { date: DATE, name, submitted_at: ts, score, total: QUESTIONS.length, answers, results };
+
+      const pct = Math.round(score / QUESTIONS.length * 100);
+      document.getElementById('score-display').textContent = score + ' / ' + QUESTIONS.length;
+      document.getElementById('result-msg').textContent =
+        '正答率 ' + pct + '%　' +
+        (pct >= 80 ? '素晴らしい！' : pct >= 60 ? 'もう少し！' : '復習しよう！');
+      document.getElementById('result-overlay').classList.add('show');
+      document.getElementById('submit-btn').disabled = true;
+      document.getElementById('reshow-btn').style.display = '';
+      document.getElementById('dl-footer-btn').style.display = '';
+
+      // 再highlight（解説内コードブロック）
+      if (typeof hljs !== 'undefined') {
+        document.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+      }
+    }
+
+    document.getElementById('submit-btn').addEventListener('click', () => {
+      if (submitted) return;
+      const answeredCount = QUESTIONS.filter((_, qi) => getAnswered(qi).length > 0).length;
+      if (answeredCount < QUESTIONS.length) {
+        if (!confirm('未回答の問題が ' + (QUESTIONS.length - answeredCount) + ' 問あります。このまま提出しますか？')) return;
+      }
+      doSubmit();
+    });
+
+    document.getElementById('close-btn').addEventListener('click', () => {
+      document.getElementById('result-overlay').classList.remove('show');
+    });
+
+    document.getElementById('download-btn').addEventListener('click', () => {
+      if (!resultData) return;
+      const blob = new Blob([JSON.stringify(resultData, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'result_' + DATE + '_' + resultData.name + '.json';
+      a.click();
+    });
+
+    // DOMロード後に実行
+    window.addEventListener('load', () => {
+      buildQuiz();
+      startTimer();
+    });
+  </script>
+</body>
+</html>

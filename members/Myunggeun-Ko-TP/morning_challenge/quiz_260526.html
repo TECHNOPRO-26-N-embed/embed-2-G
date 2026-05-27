@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>朝チャレ C言語 — 26/05/26</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body,{delimiters:[{left:'\\\\(',right:'\\\\)',display:false},{left:'\\\\[',right:'\\\\]',display:true}]})"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box }
+    body { font-family: 'Noto Sans JP', sans-serif; background: #f5f3ef; color: #1a1a2e; min-height: 100vh }
+    #header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(255,255,255,0.97); backdrop-filter: blur(8px);
+      border-bottom: 1px solid #e0ddd8;
+      padding: 12px 32px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06)
+    }
+    #header h1 { font-size: 1.1em; font-weight: 900; color: #4a6fa5; white-space: nowrap }
+    #name-wrap { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 220px }
+    #name-wrap label { font-size: 0.9em; color: #666; white-space: nowrap }
+    #student-name {
+      background: #fff; border: 1.5px solid #d0cdc8; border-radius: 8px;
+      color: #1a1a2e; padding: 6px 12px; font-size: 0.95em; font-family: inherit; width: 200px
+    }
+    #student-name:focus { outline: none; border-color: #4a6fa5; box-shadow: 0 0 0 3px rgba(74,111,165,.15) }
+    #timer {
+      font-size: 1.6em; font-weight: 900; color: #1e8449;
+      font-variant-numeric: tabular-nums; letter-spacing: 0.05em; transition: color .3s
+    }
+    #timer.warn { color: #d35400 }
+    #timer.danger { color: #c0392b; animation: pulse .8s infinite }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    #progress-bar { height: 3px; background: #e0ddd8; position: fixed; top: 0; left: 0; right: 0; z-index: 200 }
+    #progress-fill { height: 100%; background: linear-gradient(90deg, #4a6fa5, #2471a3); transition: width .5s }
+    main { max-width: 900px; margin: 0 auto; padding: 24px 20px 120px }
+    .q-card {
+      background: #fff; border: 1px solid #e0ddd8; border-radius: 12px;
+      padding: 28px 32px; margin-bottom: 20px;
+      transition: border-color .2s; box-shadow: 0 2px 8px rgba(0,0,0,.04)
+    }
+    .q-card:focus-within { border-color: #4a6fa5; box-shadow: 0 2px 12px rgba(74,111,165,.12) }
+    .q-num { font-size: 0.8em; font-weight: 700; color: #4a6fa5; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px }
+    .q-title { font-size: 1.1em; font-weight: 700; color: #1a1a2e; margin-bottom: 16px }
+    .q-problem { font-size: 0.97em; line-height: 1.8; color: #333; margin-bottom: 20px }
+    .q-problem pre { background: #f8f8f6; border: 1px solid #e0ddd8; border-radius: 8px; padding: 16px; overflow-x: auto; margin: 12px 0 }
+    .q-problem code.hljs { background: transparent; padding: 0; font-family: 'Source Code Pro', Consolas, monospace; font-size: 0.92em }
+    .q-problem p code { background: #efefeb; padding: 2px 6px; border-radius: 4px; font-family: 'Source Code Pro', Consolas, monospace; font-size: 0.9em; color: #2471a3; border: 1px solid #e0ddd8 }
+    .q-exp {
+      display: none; margin-top: 16px;
+      background: #f0f9f4; border: 1.5px solid #a9dfbf; border-radius: 8px;
+      padding: 16px 20px; font-size: 0.93em; line-height: 1.8; color: #1a5232
+    }
+    .q-exp.show { display: block }
+    .q-exp .exp-label { font-size: 0.8em; font-weight: 700; color: #1e8449; letter-spacing: .06em; margin-bottom: 8px }
+    .q-exp p code { background: rgba(0,0,0,.06); padding: 2px 6px; border-radius: 4px; font-family: 'Source Code Pro', Consolas, monospace; font-size: 0.88em }
+    .q-exp pre { background: #e8f8f0; border: 1px solid #a9dfbf; border-radius: 6px; padding: 12px; overflow-x: auto; margin: 8px 0 }
+    .q-exp pre code { background: transparent; font-family: 'Source Code Pro', Consolas, monospace; font-size: 0.88em }
+    .choices { display: flex; flex-direction: column; gap: 8px }
+    .choice-label {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: #fafaf8; border: 1.5px solid #e0ddd8; border-radius: 8px;
+      padding: 12px 16px; cursor: pointer; transition: all .15s; user-select: none
+    }
+    .choice-label:hover { border-color: #4a6fa5; background: #f0f4fa }
+    .choice-label.selected { border-color: #4a6fa5; background: #eaf1fb }
+    .choice-label.correct { border-color: #1e8449 !important; background: #eafaf1 !important }
+    .choice-label.wrong { border-color: #c0392b !important; background: #fdedec !important }
+    .choice-label input { margin-top: 3px; flex-shrink: 0; accent-color: #4a6fa5 }
+    .choice-text { font-size: 0.95em; line-height: 1.7; color: #2a2a2a }
+    .choice-text pre { background: #f8f8f6; border: 1px solid #e0ddd8; border-radius: 6px; padding: 12px; overflow-x: auto; margin: 4px 0 }
+    .choice-text code.hljs { background: transparent; font-family: 'Source Code Pro', Consolas, monospace; font-size: 0.88em }
+    .choice-text p code { background: #efefeb; padding: 2px 5px; border-radius: 4px; font-family: 'Source Code Pro', Consolas, monospace; font-size: 0.88em; color: #2471a3 }
+    .multi-hint { font-size: 0.78em; color: #d35400; margin-bottom: 8px; font-weight: 700 }
+    #footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(255,255,255,0.97); border-top: 1px solid #e0ddd8;
+      padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      box-shadow: 0 -2px 8px rgba(0,0,0,.06)
+    }
+    #answered-count { font-size: 0.95em; color: #666 }
+    #answered-count span { color: #4a6fa5; font-weight: 700 }
+    #submit-btn {
+      background: #4a6fa5; color: #fff; border: none; padding: 12px 36px;
+      border-radius: 8px; font-size: 1.05em; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: background .2s; box-shadow: 0 2px 8px rgba(74,111,165,.25)
+    }
+    #submit-btn:hover { background: #3a5f95 }
+    #submit-btn:disabled { opacity: .4; cursor: default }
+    #reshow-btn {
+      background: #fff; border: 1.5px solid #4a6fa5; color: #4a6fa5;
+      padding: 10px 20px; border-radius: 8px; font-size: 0.95em; font-weight: 700;
+      cursor: pointer; font-family: inherit; transition: all .2s
+    }
+    #reshow-btn:hover { background: #eaf1fb }
+    #dl-footer-btn {
+      background: #1e8449; color: #fff; border: none; padding: 10px 20px;
+      border-radius: 8px; font-size: 0.95em; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: background .2s
+    }
+    #dl-footer-btn:hover { background: #196f3d }
+    #result-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.45); z-index: 300;
+      align-items: center; justify-content: center
+    }
+    #result-overlay.show { display: flex }
+    #result-box {
+      background: #fff; border: 1px solid #e0ddd8; border-radius: 16px;
+      padding: 40px 48px; max-width: 480px; width: 90%; text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,.12)
+    }
+    #result-box h2 { font-size: 2em; font-weight: 900; margin-bottom: 8px; color: #1a1a2e }
+    #score-display { font-size: 4em; font-weight: 900; margin: 16px 0; color: #4a6fa5 }
+    #result-box p { color: #555; font-size: 0.95em; line-height: 1.7; margin-bottom: 24px }
+    #download-btn {
+      background: #4a6fa5; color: #fff; border: none; padding: 14px 40px;
+      border-radius: 8px; font-size: 1em; font-weight: 700; cursor: pointer;
+      font-family: inherit; width: 100%; margin-bottom: 12px; transition: background .2s
+    }
+    #download-btn:hover { background: #3a5f95 }
+    #close-btn {
+      background: #fff; border: 1.5px solid #e0ddd8; color: #666;
+      padding: 10px 32px; border-radius: 8px; font-size: 0.9em;
+      cursor: pointer; font-family: inherit; transition: all .2s
+    }
+    #close-btn:hover { border-color: #4a6fa5; color: #4a6fa5 }
+  </style>
+</head>
+<body>
+  <div id="progress-bar"><div id="progress-fill" style="width:100%"></div></div>
+  <div id="header">
+    <h1>&#x1F9E0; 朝チャレ &mdash; C言語 26/05/26</h1>
+    <div id="name-wrap">
+      <label for="student-name">GitHub ID&#xff1a;</label>
+      <input id="student-name" type="text" placeholder="GitHub username を入力" autocomplete="off">
+    </div>
+    <div id="timer">20:00</div>
+  </div>
+
+  <main id="quiz-area"></main>
+
+  <div id="footer">
+    <div id="answered-count">回答済み <span id="ans-num">0</span> / 20 問</div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button id="reshow-btn" style="display:none"
+        onclick="document.getElementById('result-overlay').classList.add('show')">
+        &#x1F4CA; 結果を再表示
+      </button>
+      <button id="dl-footer-btn" style="display:none" onclick="document.getElementById('download-btn').click()">
+        &#x1F4E5; JSONをダウンロード
+      </button>
+      <button id="submit-btn">提出する</button>
+    </div>
+  </div>
+
+  <div id="result-overlay">
+    <div id="result-box">
+      <h2>結果</h2>
+      <div id="score-display"></div>
+      <p id="result-msg"></p>
+      <button id="download-btn">&#x1F4E5; result_260526.json をダウンロード</button>
+      <button id="close-btn">答え合わせを見る</button>
+    </div>
+  </div>
+
+  <script>
+    const QUESTIONS = [{"num": 1, "title": "for文の基本挙動 (C言語)", "problem": "以下のC言語コードを実行したとき、変数 `count` の値はいくつになるか。\n\n```c\nint count = 0;\nfor (int i = 1; i <= 5; i++) {\n    if (i % 2 == 0) {\n        count++;\n    }\n}\n```", "choices": ["`1`", "`2`", "`3`", "`5`"], "multiple": false, "exp": "ループは `i = 1, 2, 3, 4, 5` と繰り返されます。`i % 2 == 0` が真になるのは `i = 2` と `i = 4` の2回です。よって `count` は **2** になります。\n\n- `i = 1`: `1 % 2 == 1` → 偽\n- `i = 2`: `2 % 2 == 0` → 真 → `count = 1`\n- `i = 3`: `3 % 2 == 1` → 偽\n- `i = 4`: `4 % 2 == 0` → 真 → `count = 2`\n- `i = 5`: `5 % 2 == 1` → 偽"}, {"num": 2, "title": "整数除算の切り上げ (C言語)", "problem": "\\\\( 1 \\\\) 以上の正の整数 \\\\( a, b \\\\) について、 \\\\( a / b \\\\) の**切り上げ**を計算するC言語の関数を考える。`[ BLANK ]` に入る式として**正しいもの**はどれか。\n\n```c\nint ceil_div(int a, int b) {\n    return [ BLANK ];\n}\n```\n\nただし、`a + b - 1` がオーバーフローしない範囲とする。C言語における \\\\( x / y \\\\) は、正の整数 \\\\( x \\\\) を \\\\( y \\\\) で割った商（小数点以下は切り捨て）である。", "choices": ["`a / b`", "`a / b + 1`", "`(a + b - 1) / b`", "`a % b + a / b`"], "multiple": false, "exp": "正解は `(a + b - 1) / b` です。\n\nこの式は、分子に `b - 1` を足してからCの整数除算（切り捨て）を行うことで、結果的に切り上げと同じ値を得るテクニックです。\n\n**具体例で確認：**\n- `ceil_div(7, 3)`: 7÷3 = 2.33... → 切り上げは **3**\n  - 式: `(7 + 3 - 1) / 3` = `9 / 3` = `3`（Cの整数除算でちょうど割り切れる）✓\n- `ceil_div(6, 3)`: 6÷3 = 2.0 → 割り切れるので切り上げも **2**\n  - 式: `(6 + 3 - 1) / 3` = `8 / 3` = `2`（Cの整数除算で小数点以下切り捨て）✓\n\n**誤りの選択肢：**\n- `a / b`: Cの整数除算は切り捨てなので、切り上げにはなりません。\n- `a / b + 1`: 割り切れる場合（例: `6/3`）に `2 + 1 = 3` となり、正解の `2` と異なります。\n- `a % b + a / b`: 余り＋商で、例えば `5 % 3 + 5 / 3 = 2 + 1 = 3` ですが、切り上げは `2` なので誤りです。"}, {"num": 3, "title": "if文の到達可能性 (C言語)", "problem": "以下のC言語の関数 `classify` は、整数 \\\\( x \\\\) を引数に受け取り、何らかの 1 文字を標準出力に表示する。この関数の引数に任意の整数を与えて関数呼び出しを行ったとき、**絶対に表示されることがない**文字はどれか。\n\n```c\n#include <stdio.h>\n\nvoid classify(int x) {\n    if (x > 0) {\n        if (x < 5) {\n            printf(\"A\\n\");\n        } else {\n            printf(\"B\\n\");\n        }\n    } else {\n        if (x > 0) {\n            printf(\"C\\n\");\n        } else {\n            printf(\"D\\n\");\n        }\n    }\n}\n```", "choices": ["`A`", "`B`", "`C`", "`D`", "上記の全ての文字が表示されうる"], "multiple": false, "exp": "正解は **`C`** です。\n\n外側の `else` ブロックは `x <= 0` の場合に実行されます。しかし、このブロック内で `if (x > 0)` を判定しても、既に `x <= 0` が確定しているため、`x > 0` が真になることは**数学的にあり得ません**。\n\nよって `printf(\"C\\n\")` の行は到達不能（デッドコード）であり、`C` が表示されることはありません。\n\n- `x = 1` → `x > 0` かつ `x < 5` → **A が表示されます**\n- `x = 10` → `x > 0` かつ `x >= 5` → **B が表示されます**\n- `x = 0` → `x <= 0` → 内側の `x > 0` は偽 → **D が表示されます**\n- `x = -5` → `x <= 0` → 内側の `x > 0` は偽 → **D が表示されます**"}, {"num": 4, "title": "整数型と実数型の混合演算 (C言語)", "problem": "以下のC言語のプログラムの出力結果として正しいものはどれか。\n\n```c\n#include <stdio.h>\n\nint main(void) {\n    int a = 7;\n    int b = 2;\n    double result = a / b;\n    printf(\"%.1f\\n\", result);\n    return 0;\n}\n```", "choices": ["`3.5`", "`3.0`", "`4.0`", "コンパイルエラーが発生する"], "multiple": false, "exp": "正解は **`3.0`** です。\n\n`a` と `b` はどちらも `int` 型であるため、`a / b` は**整数除算**が行われます。`7 / 2` の結果は `3`（小数点以下は切り捨て）です。\n\nこの整数値 `3` が `double` 型の変数 `result` に代入される際に `3.0` に変換されますが、小数点以下の精度は既に失われています。\n\n**正しく `3.5` を得るには：**\n```c\ndouble result = (double)a / b;  // aをdoubleにキャストしてから除算\n```\n\nこのように、一方を `double` にキャストすれば浮動小数点数同士の除算になり、`3.5` が得られます。"}, {"num": 5, "title": "フラグ変数のロジック設計 (C言語)", "problem": "要素数 \\\\( n \\\\) の整数配列 \\\\( a \\\\) のすべての要素が**正の数**であるかどうかを判定し、その結果を出力するプログラムを作成したい。空欄 `[ ア ]`、`[ イ ]` に入るコードの組み合わせとして**正しいもの**を選べ。\n\n```c\n#include <stdio.h>\n\nvoid check_all_positive(int a[], int n) {\n    int flag = [ ア ];\n    for (int i = 0; i < n; i++) {\n        [ イ ]\n    }\n    if (flag) {\n        printf(\"すべて正の数である\\n\");\n    } else {\n        printf(\"正でない数が含まれます\\n\");\n    }\n}\n```", "choices": ["ア=`0`、イ=`if (a[i] > 0) { flag = 1; }`", "ア=`1`、イ=`if (a[i] <= 0) { flag = 0; }`", "ア=`1`、イ=`flag = (a[i] > 0) ? 1 : 0;`", "ア=`1`、イ=`if (a[i] > 0) { flag = 1; } else { flag = 0; }`"], "multiple": false, "exp": "正解は **ア=`1`、イ=`if (a[i] <= 0) { flag = 0; }`** です。\n\n「すべての要素が条件を満たす」の判定パターンは以下の通りです：\n1. **フラグを `1`（真）で初期化**する（「最初はすべて条件を満たしていると仮定」）\n2. ループ中に条件を**満たさない要素**が見つかったら、フラグを `0`（偽）に変更する\n3. 一度 `0` にしたフラグを `1` に戻すことはない\n\n**誤りの選択肢：**\n- 選択肢1: `flag = 0` で初期化し「見つかったら 1」にするパターンは「**少なくとも1つが正**」の判定になります。\n- 選択肢3: 三項演算子でループのたびに `flag` が上書きされるため、**最後の要素**の判定結果だけが残ります。\n- 選択肢4: `if-else` で毎回上書きされるため、選択肢3と同様に最後の要素だけの判定になります。"}, {"num": 6, "title": "偶数判定 (C言語)", "problem": "正の整数 \\\\( n \\\\) が**偶数**であるときに \\\\( 1 \\\\)（真）、そうでないときに \\\\( 0 \\\\)（偽）を返す関数において、`[ BLANK ]` に入る式として**正しいもの**はどれか。\n\n```c\nint is_even(int n) {\n    return [ BLANK ];\n}\n```", "choices": ["`n % 2 == 0`", "`n % 2 == 1`", "`n / 2 == 0`", "`n & 2`"], "multiple": false, "exp": "正解は **`n % 2 == 0`** です。\n\n偶数は 2 で割ったときに余りが 0 になる数です。\n\n- `n % 2 == 0`: 余りが 0 → 偶数 → 真（1）。**正解**。\n- `n % 2 == 1`: 余りが 1 → **奇数**の判定。逆です。\n- `n / 2 == 0`: 整数除算の結果が 0、つまり `n = 1` のときだけ真（`n` は正の整数のため `n = 0` は対象外）。偶数判定ではありません。\n- `n & 2`: ビット演算で**2のビット（第1ビット）**を取得します。偶数判定には**最下位ビット（第0ビット）**を見る `n & 1` を使う必要があり、これは奇数判定の式。`n & 2` は全く別の判定になります。"}, {"num": 7, "title": "最小値関数の初期値 (C言語)", "problem": "**正の値のみ**を含む可能性がある要素数 \\\\( \\text{length} \\\\) の配列 \\\\( a \\\\) の最小値を計算する関数を、C言語で実装したい。ただし配列は要素数が 1 以上であることが保証されている。`[ BLANK ]` に入る初期値として**最も適切なもの**を選べ。\n\n```c\nint min_val(int a[], int length) {\n    int answer = [ BLANK ];\n    for (int i = 1; i < length; i++) {\n        if (answer > a[i]) {\n            answer = a[i];\n        }\n    }\n    return answer;\n}\n```", "choices": ["`0`", "`-1`", "`a[0]`", "`a[length]`"], "multiple": false, "exp": "正解は **`a[0]`** です。\n\nループが `i = 1` から始まるため、`a[0]` は比較の**基準値**として使われます。\n\n- `0`: 配列の全要素が正の場合、`0` より大きい要素しかなく、`answer` は `0` のまま返されてしまいます。しかし `0` は配列に含まれていないため誤りです。\n- `-1`: 同様に、全要素が正なら `-1` がそのまま返されます。配列にない値を返すのは誤りです。\n- `a[0]`: 配列の最初の要素を初期値とし、残り（`i = 1` 以降）と比較する。どんな値の配列でも正しく動作します。**正解**。\n- `a[length]`: 配列の**範囲外アクセス**（未定義動作）です。`a[length-1]` が最後の有効な要素です。"}, {"num": 8, "title": "バブルソートの条件式 — 昇順 (C言語)", "problem": "整数型配列 `a` を**昇順**（小さい順）にソートするバブルソート関数がある。配列の要素数は `n` とする。空欄 `[ ア ]` に入る比較条件として正しいものはどれか。\n\n```c\nvoid sort_asc(int a[], int n) {\n    for (int i = 0; i < n - 1; i++) {\n        for (int j = 0; j < n - 1 - i; j++) {\n            if ([ ア ]) {\n                int temp = a[j];\n                a[j] = a[j+1];\n                a[j+1] = temp;\n            }\n        }\n    }\n}\n```", "choices": ["`a[j] < a[j+1]`", "`a[j] > a[j+1]`", "`a[j] == a[j+1]`", "`a[j] != a[j+1]`"], "multiple": false, "exp": "正解は **`a[j] > a[j+1]`** です。\n\n**昇順**（小さい順）ソートでは、隣り合う要素で**左が右より大きい**場合に交換します。これにより、大きい値が右（配列の後方）に移動し、小さい値が左に残ります。\n\n- `a[j] < a[j+1]`: 左が右より**小さい**場合に交換 → **降順**ソートの条件。逆です。\n- `a[j] > a[j+1]`: 左が右より**大きい**場合に交換 → **昇順**ソート。**正解**。\n- `a[j] == a[j+1]`: 等しい場合のみ交換 → ソートにならない。\n- `a[j] != a[j+1]`: 異なる場合に常に交換 → 意味のない操作。\n\n> **昇順 vs 降順の覚え方：**\n> - 昇順（小→大）: 「大きいのが来たら交換」 → `>`\n> - 降順（大→小）: 「小さいのが来たら交換」 → `<`"}, {"num": 9, "title": "文字列関数 strlen の挙動 (C言語)", "problem": "以下のC言語のプログラムの出力結果として正しいものはどれか。\n\n```c\n#include <stdio.h>\n#include <string.h>\n\nint main(void) {\n    char s[] = \"Hello\";\n    int len = strlen(s);\n    printf(\"%d\\n\", len);\n    return 0;\n}\n```", "choices": ["`4`", "`5`", "`6`", "コンパイルエラーが発生する"], "multiple": false, "exp": "正解は **`5`** です。\n\n`strlen` 関数は、文字列の先頭からヌル文字 `'\\0'` までの文字数を返します。**ヌル文字自体はカウントされません。**\n\n`\"Hello\"` は以下のようにメモリ上に格納される：\n```\n'H' 'e' 'l' 'l' 'o' '\\0'\n```\n\nヌル文字を除く文字数は `H, e, l, l, o` の **5文字** です。\n\n> **注意:** `sizeof(s)` を使った場合は、ヌル文字を含む **6** が返されます。`strlen` と `sizeof` の違いを理解することが重要です。"}, {"num": 10, "title": "配列総和の正しいループ (C言語)（複数選択）", "problem": "要素数 `length` の整数配列 `a` の総和を計算して返すC言語の関数を実装したい。合計値は `int` の範囲内に収まるものとする。仕様通りに正しく動作し、境界外アクセスなどの未定義動作を含まないプログラムを**すべて**選べ。", "choices": ["```c\nint sum(int a[], int length) {\n    int ans = 0;\n    for (int i = 0; i < length; i++)\n        ans += a[i];\n    return ans;\n}\n```", "```c\nint sum(int a[], int length) {\n    int ans = 0;\n    for (int i = 1; i <= length; i++)\n        ans += a[i];\n    return ans;\n}\n```", "```c\nint sum(int a[], int length) {\n    int ans = 0;\n    int i = 0;\n    while (i < length) {\n        ans += a[i];\n        i++;\n    }\n    return ans;\n}\n```", "どれも正しく動作しない"], "multiple": true, "exp": "正解は **1番目と3番目** です。\n\n- **1番目**: `i = 0` から `length - 1` まで。`a[0]` から `a[length-1]` に正しくアクセスし、総和を計算します。**正しい。**\n- **2番目**: `i = 1` から `length` まで。`a[1]` から `a[length]` にアクセスするが、`a[length]` は配列の**範囲外**です。また `a[0]` がスキップされます。**誤り。**\n- **3番目**: `while` ループで `i = 0` から開始し、`i < length` が偽になるまで繰り返します。`for` ループと同等の動作であり、**正しい。**"}, {"num": 11, "title": "整数配列の累積和 (C言語)", "problem": "要素数 \\\\( N \\\\) の整数配列 \\\\( a \\\\) の値をもとに、累積和を計算して配列 \\\\( \\text{prefix} \\\\) に格納するプログラムを作成した。\n\n配列 \\\\( \\text{prefix} \\\\) は、\\\\( \\text{prefix}[k] \\\\) が \\\\( a[0] \\\\) から \\\\( a[k-1] \\\\) までの和になるように構成される（ただし \\\\( \\text{prefix}[0] = 0 \\\\)）。\n\nコード中の `[ BLANK ]` に入る正しい式を選べ。\n\n```c\n#define N 4\nint a[N] = {2, 5, 1, 3};\nint prefix[N + 1];\n\nvoid build(void) {\n    prefix[0] = 0;\n    for (int i = 0; i < N; i++) {\n        [ BLANK ]\n    }\n}\n```\n\n例: `a = {2, 5, 1, 3}` であれば `prefix = {0, 2, 7, 8, 11}` となる。", "choices": ["`prefix[i] = prefix[i-1] + a[i];`", "`prefix[i+1] = a[i+1] + a[i];`", "`prefix[i+1] = prefix[i] + a[i];`", "`prefix[i] = a[i];`"], "multiple": false, "exp": "正解は **`prefix[i+1] = prefix[i] + a[i];`** です。\n\n累積和の漸化式: `prefix[i+1] = prefix[i] + a[i]` は、「前の累積和に現在の要素を足す」ことを意味します。\n\n**計算過程：**\n- `i=0`: `prefix[1] = prefix[0] + a[0] = 0 + 2 = 2`\n- `i=1`: `prefix[2] = prefix[1] + a[1] = 2 + 5 = 7`\n- `i=2`: `prefix[3] = prefix[2] + a[2] = 7 + 1 = 8`\n- `i=3`: `prefix[4] = prefix[3] + a[3] = 8 + 3 = 11`\n\n結果: `prefix = {0, 2, 7, 8, 11}` ✓\n\n**誤りの選択肢：**\n- 選択肢1: `i=0` のとき `prefix[-1]` にアクセスし、配列範囲外アクセス（未定義動作）。\n- 選択肢2: 隣接する2要素の和であり累積和ではありません。さらに `i = N - 1` のとき `a[N]` への範囲外アクセスが発生する。\n- 選択肢4: 各要素をそのままコピーするだけで、累積和にならない。"}, {"num": 12, "title": "文字列操作関数 islower の挙動 (C言語)", "problem": "文字列中の**小文字**の数をカウントする以下のC言語関数 `count_lower` について、`count_lower(\"Hello, World!\")` の戻り値はいくつか。\n\n```c\n#include <ctype.h>\n\nint count_lower(const char* s) {\n    int count = 0;\n    for (int i = 0; s[i] != '\\0'; i++) {\n        if (islower((unsigned char)s[i])) {\n            count++;\n        }\n    }\n    return count;\n}\n```", "choices": ["`5`", "`7`", "`8`", "`13`"], "multiple": false, "exp": "正解は **`8`** です。\n\n`\"Hello, World!\"` の各文字を確認します：\n\n| 位置 | 文字 | 小文字？ |\n|------|------|----------|\n| 0 | `H` | ❌ 大文字 |\n| 1 | `e` | ✅ |\n| 2 | `l` | ✅ |\n| 3 | `l` | ✅ |\n| 4 | `o` | ✅ |\n| 5 | `,` | ❌ 記号 |\n| 6 | ` ` | ❌ 空白 |\n| 7 | `W` | ❌ 大文字 |\n| 8 | `o` | ✅ |\n| 9 | `r` | ✅ |\n| 10 | `l` | ✅ |\n| 11 | `d` | ✅ |\n| 12 | `!` | ❌ 記号 |\n\n小文字: `e, l, l, o, o, r, l, d` = **8文字**\n\n> `islower` は**小文字のアルファベット**（a〜z）のみを判定する。大文字・数字・記号・空白は偽を返します。"}, {"num": 13, "title": "出現回数のカウント (C言語)", "problem": "要素数 \\\\( \\text{length} \\\\) の整数配列 \\\\( a \\\\) の中で、指定された値 \\\\( x \\\\) が出現する**回数**を返すC言語関数 `count_occurrences` に関する説明として、**誤っているもの**を選べ。\n\n```c\nint count_occurrences(int a[], int length, int x) {\n    int count = 0;\n    for (int i = 0; i < length; i++) {\n        if (a[i] == x) {\n            count++;\n        }\n    }\n    return count;\n}\n```", "choices": ["引数 `length` が \\\\( 0 \\\\) の場合、この関数は \\\\( 0 \\\\) を返す。", "配列 \\\\( a \\\\) に \\\\( x \\\\) が含まれない場合、\\\\( -1 \\\\) を返す。", "配列 \\\\( a \\\\) に \\\\( x \\\\) が3回含まれている場合、\\\\( 3 \\\\) を返す。", "戻り値は必ず \\\\( 0 \\\\) 以上の整数になる。"], "multiple": false, "exp": "正解（誤っている説明）は **「配列 a に x が含まれない場合、-1 を返す」** です。\n\n配列に `x` が含まれない場合、`count` は初期値 `0` のままなので、関数は **`0`** を返します。`-1` ではありません。\n\n> この関数は `find_index`（最初の出現位置を返す関数）とは異なり、「見つからなかった場合」を `-1` で表す仕様ではありません。出現回数が 0 であれば素直に `0` を返します。\n\nその他の選択肢は全て正しい説明です：\n- `length = 0` の場合、ループは実行されず `count = 0` を返します。\n- `x` が3回あれば `count` は3回インクリメントされ `3` を返します。\n- `count` は `0` で初期化され、インクリメントのみなので、戻り値は常に `0` 以上。"}, {"num": 14, "title": "論理演算の等価変換 (C言語)", "problem": "`bool` 型（`true` または `false`）の変数 `a`, `b` を引数にとり、排他的論理和（XOR: どちらか一方だけが `true` のとき `true`）を返す関数 `f` がある。\n\n以下の関数 `g` の `[ ア ]` に選択肢のコードを記述したとき、関数 `f` と等価に**ならない**ものはどれか？\n\n```c\n#include <stdbool.h>\n\nbool f(bool a, bool b) {\n    return a != b;\n}\n\nbool g(bool a, bool b) {\n    return [ ア ];\n}\n```", "choices": ["`(a && !b) || (!a && b);`", "`(a || b) && !(a && b);`", "`a || !b;`", "`a ^ b;`"], "multiple": false, "exp": "正解は **`a || !b;`** です。これは XOR と等価に**なりません**。\n\n関数 `f` は XOR（排他的論理和）を実装しています。真理値表で各選択肢を確認します：\n\n| a | b | XOR | `(a&&!b)\\|\\|(!a&&b)` | `(a\\|\\|b)&&!(a&&b)` | `a\\|\\|!b` | `a^b` |\n|---|---|-----|---------------------|--------------------|---------|----- |\n| T | T |  F  |  F ✓                |  F ✓               | **T ✗** | F ✓  |\n| T | F |  T  |  T ✓                |  T ✓               |  T ✓    | T ✓  |\n| F | T |  T  |  T ✓                |  T ✓               | **F ✗** | T ✓  |\n| F | F |  F  |  F ✓                |  F ✓               | **T ✗** | F ✓  |\n\n- 選択肢1: XOR の定義そのもの。等価。\n- 選択肢2: `(a OR b) AND NOT(a AND b)` — 「少なくとも一方が真」かつ「両方が真ではない」= XOR。等価。\n- 選択肢3: `a OR (NOT b)` — XOR とは全く異なる結果。4つの入力中3つで不一致。**等価でない。正解。**\n- 選択肢4: C言語のビット単位XOR演算子。`bool` 値（0/1）に対してはXORと同じ結果。等価。"}, {"num": 15, "title": "3つの値の中央値 — トレース (C言語)", "problem": "以下のC言語の関数 `median3` に `median3(5, 3, 8)` を渡したとき、戻り値はいくつか。\n\n```c\nint median3(int a, int b, int c) {\n    if (a >= b) {\n        if (b >= c) return b;\n        else if (a >= c) return c;\n        else return a;\n    } else {\n        if (a >= c) return a;\n        else if (b >= c) return c;\n        else return b;\n    }\n}\n```", "choices": ["`3`", "`5`", "`8`", "未定義動作となる"], "multiple": false, "exp": "正解は **`5`** です。\n\n`a=5, b=3, c=8` としてトレースします：\n\n1. `a >= b` → `5 >= 3` → **真**（`if` ブロックに入る）\n2. `b >= c` → `3 >= 8` → **偽**\n3. `a >= c` → `5 >= 8` → **偽**\n4. → `else return a;` → `return 5;`\n\n実際に `{3, 5, 8}` の中央値は **5** なので、正しい結果です。\n\nこの関数は、すべての大小関係の場合分けを正しく処理し、3つの値の中央値を返します。"}, {"num": 16, "title": "整数除算の商と余り (C言語)", "problem": "以下のC言語の式の値として、**正しい組み合わせ**はどれか。すべて `int` 型の演算とする。\n\n```c\nint a = 17 / 5;\nint b = 17 % 5;\nint c = 4 / 7;\n```", "choices": ["`a=3, b=2, c=0`", "`a=3, b=2, c=1`", "`a=4, b=2, c=0`", "`a=3, b=5, c=0`"], "multiple": false, "exp": "正解は **`a=3, b=2, c=0`** です。\n\nC言語の整数除算 `/` は**小数点以下を切り捨て**た商を返し、`%` は**余り**を返します。\n\n- `17 / 5 = 3`（17 ÷ 5 = 3 余り 2 → 商は **3**）\n- `17 % 5 = 2`（17 ÷ 5 = 3 余り **2** → 余りは **2**）\n- `4 / 7 = 0`（4 ÷ 7 = 0 余り 4 → 被除数が除数より小さいため、商は **0**）\n\n> **検証:** `商 × 除数 + 余り = 元の数` が常に成り立ちます。\n> `3 × 5 + 2 = 17` ✓\n\n**誤りの選択肢：**\n- 選択肢2: `c=1` — `4 / 7` は `0` であり `1` ではありません。被除数 < 除数のとき商は必ず `0`。\n- 選択肢3: `a=4` — `17 / 5` は切り上げの `4` ではなく、切り捨ての `3`。\n- 選択肢4: `b=5` — `17 % 5` の余りは `2` であり `5` ではない（余りは常に除数未満）。"}, {"num": 17, "title": "フラグ変数 — 複合条件 (C言語)", "problem": "要素数 \\\\( n \\\\) の整数配列 \\\\( a \\\\) のすべての要素が**正の偶数**であるかを判定したい。空欄 `[ BLANK ]` に入るコードとして**正しいもの**を選べ。\n\n```c\n#include <stdio.h>\n\nvoid check(int a[], int n) {\n    int ok = 1;\n    for (int i = 0; i < n; i++) {\n        [ BLANK ]\n    }\n    if (ok) {\n        printf(\"すべて正の偶数である\\n\");\n    } else {\n        printf(\"条件を満たさない要素がある\\n\");\n    }\n}\n```", "choices": ["`if (a[i] > 0 && a[i] % 2 == 0) ok = 1;`", "`if (a[i] <= 0 || a[i] % 2 != 0) ok = 0;`", "`ok = (a[i] > 0 && a[i] % 2 == 0) ? 1 : 0;`", "`if (a[i] > 0 || a[i] % 2 == 0) ok = 0;`"], "multiple": false, "exp": "正解は **`if (a[i] <= 0 || a[i] % 2 != 0) ok = 0;`** です。\n\n「すべて正の偶数」の**否定**は「正でない（0以下）**または**奇数」です。この否定条件に該当する要素が見つかった場合にフラグを `0` にします。\n\n- 選択肢1: 条件を満たす場合に `ok = 1` を設定するだけで、満たさない場合に `ok` を `0` にしません。初期値が `1` のため、条件を満たさない要素があっても `ok` は `1` のままになる可能性があります。\n- 選択肢2: **正解**。条件の否定（`a[i] <= 0 || a[i] % 2 != 0`）を検出して `ok = 0` にします。一度 `0` になったら二度と `1` に戻りません。\n- 選択肢3: 三項演算子でループのたびに上書きされるため、最後の要素の判定結果だけが残ります。\n- 選択肢4: `||` の条件が「正**または**偶数」なので、ほぼ全ての正の整数でフラグが落ちてしまいます。条件が間違っています。"}, {"num": 18, "title": "二次元配列で特定の文字を数える (C言語)", "problem": "\\\\( \\text{ROWS} \\times \\text{COLS} \\\\) の二次元 `char` 型配列 `grid` の中から、文字 `'*'` の個数を数える関数を作成したい。空欄 `[ ア ]` に入る条件式として**正しいもの**を選べ。\n\n```c\n#define ROWS 3\n#define COLS 4\n\nint count_star(char grid[ROWS][COLS]) {\n    int count = 0;\n    for (int i = 0; i < ROWS; i++) {\n        for (int j = 0; j < COLS; j++) {\n            if ([ ア ]) {\n                count++;\n            }\n        }\n    }\n    return count;\n}\n```", "choices": ["`grid[i][j] == '*'`", "`grid[i][j] == \"*\"`", "`grid[i, j] == '*'`", "`grid[i][j] = '*'`"], "multiple": false, "exp": "正解は **`grid[i][j] == '*'`** です。\n\n二次元配列の要素にアクセスするには `grid[i][j]` と記述する。そして、単一の文字（`char` 型）を比較するには**シングルクォーテーション** `'*'` を使います。\n\n**誤りの選択肢：**\n- `grid[i][j] == \"*\"`: ダブルクォーテーション `\"*\"` は**文字列リテラル**（`char*` 型のポインタ）です。`char` 型の変数と `char*` 型を `==` で比較しても、型不一致によりコンパイラが警告またはエラーを出す可能性があり、期待通りの結果にはなりません。文字の比較にはシングルクォーテーションを使う必要があります。\n- `grid[i, j] == '*'`: C言語では `i, j` は**カンマ演算子**として解釈され、`i` を評価した後に `j` を返します。つまり `grid[j]` と同じになり、二次元配列の行（`char*` 型）と文字を比較することになるため、コンパイラが警告を出す可能性があり、正しく動作しません。\n- `grid[i][j] = '*'`: `=` は**代入演算子**であり、比較演算子 `==` ではありません。この式は `grid[i][j]` に `'*'` を代入し、代入された値（非ゼロ）が常に真と評価されますため、`count` は `ROWS × COLS` になってしまいます。"}, {"num": 19, "title": "配列の逆順 — トレース (C言語)", "problem": "以下のC言語の関数 `reverse` に配列 `{1, 2, 3, 4, 5}` と要素数 `5` を渡して実行した後、`a[2]` の値はいくつか。\n\n```c\nvoid reverse(int a[], int n) {\n    for (int i = 0; i < n / 2; i++) {\n        int tmp = a[i];\n        a[i] = a[n - 1 - i];\n        a[n - 1 - i] = tmp;\n    }\n}\n```", "choices": ["`1`", "`2`", "`3`", "`5`"], "multiple": false, "exp": "正解は **`3`** です。\n\n`n = 5` なので `n / 2 = 2`。ループは `i = 0, 1` の2回実行されます。\n\n**トレース：**\n- 初期状態: `{1, 2, 3, 4, 5}`\n- `i = 0`: `a[0]` と `a[4]` を交換 → `{5, 2, 3, 4, 1}`\n- `i = 1`: `a[1]` と `a[3]` を交換 → `{5, 4, 3, 2, 1}`\n\n結果: `a = {5, 4, 3, 2, 1}`\n\n`a[2] = 3` です。配列の要素数が奇数の場合、**中央の要素は入れ替わらずそのまま**残ります。\n\n> **ポイント:** `n / 2 = 2` なので、ループは中央の要素（`a[2]`）に到達する前に終了する。奇数長の配列を逆順にする場合、中央の要素は常に元の位置に残ります。"}, {"num": 20, "title": "入出力 scanf の挙動 (C言語)", "problem": "以下のC言語のプログラムに関する説明として、**正しいもの**を選べ。\n\n```c\n#include <stdio.h>\n\nint main(void) {\n    int x;\n    printf(\"Enter: \");\n    if (scanf(\"%d\", &x) == 1) {\n        if (x > 0) {\n            printf(\"positive\\n\");\n        } else if (x < 0) {\n            printf(\"negative\\n\");\n        } else {\n            printf(\"zero\\n\");\n        }\n    } else {\n        printf(\"invalid\\n\");\n    }\n    return 0;\n}\n```", "choices": ["文字列 `abc` を入力すると、`negative` と表示される。", "数値 `0` を入力すると、`positive` と表示される。", "数値 `-5` を入力すると、`negative` と表示される。", "文字列 `abc` を入力すると、コンパイルエラーが発生する。"], "multiple": false, "exp": "正解は **「数値 `-5` を入力すると、`negative` と表示されます」** です。\n\n各入力パターンを確認します：\n\n- **`abc` を入力**: `scanf(\"%d\", &x)` は整数を読み取ろうとしますが、`abc` は整数ではないため、読み取りに失敗し戻り値は `0` になります。`0 == 1` は偽なので `else` ブロックに入り、**`invalid`** と表示されます。`negative` ではありません。\n\n- **`0` を入力**: `scanf` は成功し `x = 0`。`x > 0` は偽、`x < 0` も偽なので `else` ブロックに入り、**`zero`** と表示されます。`positive` ではありません。\n\n- **`-5` を入力**: `scanf` は成功し `x = -5`。`x > 0` は偽、`x < 0` は真なので **`negative`** と表示されます。**正解。**\n\n- **`abc` でコンパイルエラー**: 入力はプログラムの**実行時**に行われるもので、コンパイル時には関係ありません。コンパイルエラーにはなりません。"}];
+    const ANSWER_KEY = [[1], [2], [2], [1], [1], [0], [2], [1], [1], [0, 2], [2], [2], [1], [2], [1], [0], [1], [0], [2], [2]];
+    const DATE = '260526';
+    const TOTAL_SEC = 20 * 60;
+    let remaining = TOTAL_SEC;
+    let timerInterval = null;
+    let submitted = false;
+    let resultData = null;
+
+    function mdToHtml(text) {
+      if (typeof marked !== 'undefined') return marked.parse(text, { breaks: true });
+      return text.replace(/\n/g, '<br>');
+    }
+
+    function buildQuiz() {
+      const area = document.getElementById('quiz-area');
+      area.innerHTML = '';
+      QUESTIONS.forEach((q, qi) => {
+        const card = document.createElement('div');
+        card.className = 'q-card';
+        card.id = 'card-' + qi;
+
+        const inputType = q.multiple ? 'checkbox' : 'radio';
+        const multiHint = q.multiple
+          ? '<div class="multi-hint">※ 正しいものをすべて選んでください</div>'
+          : '';
+
+        const choicesHtml = q.choices.map((c, ci) => {
+          const cHtml = (typeof marked !== 'undefined') ? marked.parse(c, { breaks: true }) : c;
+          return '<label class="choice-label" id="lbl-' + qi + '-' + ci + '">'
+            + '<input type="' + inputType + '" name="q' + qi + '" value="' + ci + '" onchange="onAnswer(' + qi + ')">'
+            + '<div class="choice-text">' + cHtml + '</div>'
+            + '</label>';
+        }).join('');
+
+        card.innerHTML =
+          '<div class="q-num">問 ' + q.num + '</div>'
+          + '<div class="q-title">' + q.title + '</div>'
+          + '<div class="q-problem" id="prob-' + qi + '">' + mdToHtml(q.problem) + '</div>'
+          + multiHint
+          + '<div class="choices">' + choicesHtml + '</div>'
+          + '<div class="q-exp" id="exp-' + qi + '"><div class="exp-label">✅ 解説</div><div id="exp-body-' + qi + '"></div></div>';
+
+        area.appendChild(card);
+      });
+
+      if (typeof hljs !== 'undefined') {
+        document.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+      }
+      if (typeof renderMathInElement !== 'undefined') {
+        renderMathInElement(area, {
+          delimiters: [
+            { left: '\\(', right: '\\)', display: false },
+            { left: '\\[', right: '\\]', display: true }
+          ]
+        });
+      }
+    }
+
+    function onAnswer(qi) {
+      document.querySelectorAll('label[id^="lbl-' + qi + '-"]').forEach(lbl => {
+        lbl.classList.toggle('selected', lbl.querySelector('input').checked);
+      });
+      updateAnsweredCount();
+    }
+
+    function getAnswered(qi) {
+      return [...document.querySelectorAll('input[name="q' + qi + '"]')]
+        .filter(i => i.checked).map(i => +i.value);
+    }
+
+    function updateAnsweredCount() {
+      const answered = QUESTIONS.filter((_, qi) => getAnswered(qi).length > 0).length;
+      document.getElementById('ans-num').textContent = answered;
+    }
+
+    function startTimer() {
+      const timerEl = document.getElementById('timer');
+      const fillEl  = document.getElementById('progress-fill');
+      timerInterval = setInterval(() => {
+        remaining--;
+        const m = String(Math.floor(remaining / 60)).padStart(2, '0');
+        const s = String(remaining % 60).padStart(2, '0');
+        timerEl.textContent = m + ':' + s;
+        fillEl.style.width = (remaining / TOTAL_SEC * 100) + '%';
+        if (remaining <= 300) timerEl.className = 'warn';
+        if (remaining <= 60)  timerEl.className = 'danger';
+        if (remaining <= 0)   { clearInterval(timerInterval); doSubmit(); }
+      }, 1000);
+    }
+
+    function doSubmit() {
+      if (submitted) return;
+      submitted = true;
+      clearInterval(timerInterval);
+
+      const name = document.getElementById('student-name').value.trim() || 'anonymous';
+      const ts   = new Date().toTimeString().slice(0, 8);
+      let score  = 0;
+      const answers = {}, results = {};
+
+      QUESTIONS.forEach((q, qi) => {
+        const chosen  = getAnswered(qi).sort((a,b) => a-b);
+        const correct = ANSWER_KEY[qi].slice().sort((a,b) => a-b);
+        const isOK    = JSON.stringify(chosen) === JSON.stringify(correct);
+        if (isOK) score++;
+        answers['q' + q.num] = chosen;
+        results['q' + q.num] = isOK;
+
+        ANSWER_KEY[qi].forEach(ci => {
+          document.getElementById('lbl-' + qi + '-' + ci)?.classList.add('correct');
+        });
+        chosen.forEach(ci => {
+          if (!ANSWER_KEY[qi].includes(ci))
+            document.getElementById('lbl-' + qi + '-' + ci)?.classList.add('wrong');
+        });
+
+        const expEl     = document.getElementById('exp-' + qi);
+        const expBodyEl = document.getElementById('exp-body-' + qi);
+        if (expEl && expBodyEl) {
+          expBodyEl.innerHTML = mdToHtml(q.exp);
+          expEl.classList.add('show');
+          expEl.querySelectorAll('pre code').forEach(el => {
+            if (typeof hljs !== 'undefined') hljs.highlightElement(el);
+          });
+          if (typeof renderMathInElement !== 'undefined') {
+            renderMathInElement(expEl, {
+              delimiters: [
+                { left: '\\(', right: '\\)', display: false },
+                { left: '\\[', right: '\\]', display: true }
+              ]
+            });
+          }
+        }
+      });
+
+      resultData = {
+        date: '2026-05-26',
+        submitted_at: ts,
+        student_id: name,
+        score: score,
+        total: QUESTIONS.length,
+        answers: answers,
+        results: results
+      };
+
+      document.querySelectorAll('input[type=radio],input[type=checkbox]').forEach(i => i.disabled = true);
+      document.getElementById('submit-btn').style.display   = 'none';
+      document.getElementById('reshow-btn').style.display   = 'inline-block';
+      document.getElementById('dl-footer-btn').style.display = 'inline-block';
+
+      const pct = Math.round(score / QUESTIONS.length * 100);
+      document.getElementById('score-display').textContent = score + ' / ' + QUESTIONS.length;
+      document.getElementById('result-msg').textContent =
+        pct >= 80 ? '✅ 正答率 ' + pct + '%  お見事です！' :
+        pct >= 60 ? '✏️ 正答率 ' + pct + '%  もう一息！' :
+                   '⭐ 正答率 ' + pct + '%  復習して次に活かそう！';
+      document.getElementById('result-overlay').classList.add('show');
+    }
+
+    document.getElementById('submit-btn').addEventListener('click', doSubmit);
+    document.getElementById('download-btn').addEventListener('click', () => {
+      if (!resultData) return;
+      const name = resultData.student_id.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const blob = new Blob([JSON.stringify(resultData, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'result_260526_' + name + '.json';
+      a.click();
+    });
+    document.getElementById('close-btn').addEventListener('click', () => {
+      document.getElementById('result-overlay').classList.remove('show');
+    });
+
+    window.addEventListener('load', () => {
+      setTimeout(() => { buildQuiz(); startTimer(); }, 300);
+    });
+  </script>
+</body>
+</html>
